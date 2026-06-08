@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Instagram, MessageCircle, ShoppingBag, Sparkles, Phone, ArrowUpRight, 
-  MapPin, Clock, CreditCard, Lock, Menu, X, ShieldAlert 
+  MapPin, Clock, CreditCard, Lock, Menu, X, ShieldAlert, Eye, EyeOff
 } from 'lucide-react';
 import ProductCatalog from './components/ProductCatalog';
 import OrderForm from './components/OrderForm';
@@ -30,6 +30,7 @@ export default function App() {
   const [adminToken, setAdminToken] = useState<string | null>(localStorage.getItem('dsi_admin_token'));
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
 
@@ -502,15 +503,26 @@ export default function App() {
 
                     <div>
                       <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">Kata Sandi (Password)</label>
-                      <input
-                        id="admin-form-password"
-                        type="password"
-                        required
-                        placeholder="••••••••"
-                        className="w-full bg-slate-50 border border-slate-100 text-xs rounded-xl p-3 text-slate-705 focus:outline-none focus:border-pink-300 focus:bg-white"
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                      />
+                      <div className="relative">
+                        <input
+                          id="admin-form-password"
+                          type={showPassword ? "text" : "password"}
+                          required
+                          placeholder="••••••••"
+                          className="w-full bg-slate-50 border border-slate-100 text-xs rounded-xl p-3 pr-10 text-slate-705 focus:outline-none focus:border-pink-300 focus:bg-white"
+                          value={adminPassword}
+                          onChange={(e) => setAdminPassword(e.target.value)}
+                        />
+                        <button
+                          id="toggle-password-visibility-btn"
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-pink-500 transition-all cursor-pointer p-1 rounded-md hover:bg-slate-100/50"
+                          title={showPassword ? "Sembunyikan Kata Sandi" : "Tampilkan Kata Sandi"}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
 
                     <button
