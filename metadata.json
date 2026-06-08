@@ -1,0 +1,6 @@
+{
+  "name": "Jastip byDSI",
+  "description": "Premium personal shopping and tumbler pre-order service, specializing in custom Stanley tumblers, limited edition collections, luxury gift sets, and accessories.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
