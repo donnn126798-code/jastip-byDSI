@@ -6,8 +6,16 @@
       "destination": "/api/index.ts"
     },
     {
+      "source": "/assets/(.*)",
+      "destination": "/dist/assets/$1"
+    },
+    {
+      "source": "/(.*\.(?:png|jpg|jpeg|gif|svg|ico|css|js|json|webp|woff|woff2|ttf|otf))",
+      "destination": "/dist/$1"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/dist/index.html"
     }
   ]
 }
