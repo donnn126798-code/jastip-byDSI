@@ -99,7 +99,7 @@ export default function App() {
 
       {/* Boutique Floating WhatsApp Button */}
       <a
-        href="https://wa.me/6281395886663"
+        href="https://wa.me/6285649059650"
         target="_blank"
         rel="noopener noreferrer"
         title="Hubungi Personal Shopper via WhatsApp"
@@ -372,7 +372,7 @@ export default function App() {
 
                 <div className="space-y-4 text-xs font-semibold text-slate-700">
                   <a
-                    href="https://wa.me/6281395886663"
+                    href="https://wa.me/6285649059650"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-between p-4 bg-emerald-50/40 hover:bg-emerald-50 border border-emerald-100/50 rounded-2xl transition-all cursor-pointer group"
@@ -381,7 +381,7 @@ export default function App() {
                       <Phone className="w-5 h-5 text-emerald-600" /> WhatsApp Customer Service
                     </span>
                     <span className="text-[10px] font-mono font-bold text-emerald-600 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
-                      +62 813-9588-6663 <ArrowUpRight className="w-3.5 h-3.5" />
+                      +62 856-4905-9650 <ArrowUpRight className="w-3.5 h-3.5" />
                     </span>
                   </a>
 

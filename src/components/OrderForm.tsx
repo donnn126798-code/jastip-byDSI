@@ -95,9 +95,9 @@ export default function OrderForm({ selectedProduct, onBackToCatalog, onSetTrack
   if (createdOrder) {
     const formattedPrice = createdOrder.total_price.toLocaleString('id-ID');
     const waText = encodeURIComponent(
-      `Halo Admin Jastip byDSI! 💖\n\nSaya ingin mengonfirmasi bukti transfer pembayaran pre-order saya.\n\n*Kode Referensi Pesanan:* ${createdOrder.order_code}\n*Produk Pilihan:* ${createdOrder.product}\n*Jumlah:* ${createdOrder.quantity} buah\n*Total Transfer:* Rp ${formattedPrice}\n*Nama Pelanggan:* ${createdOrder.customer_name}\n\nTerlampir adalah bukti bayar/transfer saya. Mohon diproses pesanan tumbler saya. Terima kasih! SKU`
+      `Halo Admin Jastip byDSI! 🌸\n\nBerikut adalah data konfirmasi pesanan Pre-Order saya:\n\n📋 *DETAIL PESANAN PREMIUM*\n──────────────────────\n• *Kode Pesanan :* ${createdOrder.order_code}\n• *Nama Lengkap :* ${createdOrder.customer_name}\n• *No. WhatsApp :* ${createdOrder.whatsapp}\n• *Produk        :* ${createdOrder.product}\n• *Jumlah        :* ${createdOrder.quantity} pcs\n• *Total Tagihan :* Rp ${formattedPrice}\n──────────────────────\n\n✨ *Catatan Khusus:* \n${createdOrder.notes ? createdOrder.notes : '- Tidak ada.'}\n\nSaya akan segera melampirkan screenshot bukti transfer transaksi ini ke Bank BCA atas nama Jastip byDSI. Mohon bantuan Kakak untuk melakukan verifikasi. Terima kasih banyak! 💕`
     );
-    const whatsappLink = `https://wa.me/6281395886663?text=${waText}`;
+    const whatsappLink = `https://wa.me/6285649059650?text=${waText}`;
 
     return (
       <div className="w-full max-w-2xl mx-auto px-4 py-8 animate-fade-in">

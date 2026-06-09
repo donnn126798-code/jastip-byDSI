@@ -34,6 +34,7 @@ import {
 
 const app = express();
 app.use(express.json());
+export { app };
 
 // Token for simple administration authentication
 const ADMIN_TOKEN = 'bydsi-admin-logged-in-token-2026';
@@ -466,6 +467,8 @@ async function bootstrap() {
   });
 }
 
-bootstrap().catch((err) => {
-  console.error('Failed to bootstrap express server:', err);
-});
+if (!process.env.VERCEL) {
+  bootstrap().catch((err) => {
+    console.error('Failed to bootstrap express server:', err);
+  });
+}

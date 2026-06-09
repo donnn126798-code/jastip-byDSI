@@ -284,20 +284,34 @@ if (orderCount.count === 0) {
    UNIFIED ASYNC DATABASE API (AUTOMATICALLY MULTIPLEXED)
    ========================================================================== */
 
+// Helper to provide human-friendly Supabase setup instructions when tables are missing
+function handleDbError(err: any): never {
+  if (err && (err.code === 'PGRST125' || (err.message && err.message.includes('Invalid path specified')))) {
+    throw new Error(
+      'Tabel-tabel database belum dibuat di Supabase Anda! Silakan salin semua teks SQL dari file "supabase_schema.sql" di dashboard website Anda, tempel (paste) ke menu SQL Editor di dashboard Supabase Anda, lalu klik tombol "Run" berwarna hijau di kanan bawah untuk membuat tabel dan data awal admin.'
+    );
+  }
+  throw err;
+}
+
 /**
  * ADMINS ENDPOINTS
  */
 export async function getAdminByUsername(username: string): Promise<any> {
-  if (isSupabaseEnabled && supabase) {
-    const { data, error } = await supabase
-      .from('admins')
-      .select('*')
-      .ilike('username', username)
-      .maybeSingle();
-    if (error) throw error;
-    return data;
-  } else {
-    return db.prepare('SELECT * FROM admins WHERE LOWER(username) = LOWER(?)').get(username);
+  try {
+    if (isSupabaseEnabled && supabase) {
+      const { data, error } = await supabase
+        .from('admins')
+        .select('*')
+        .ilike('username', username)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    } else {
+      return db.prepare('SELECT * FROM admins WHERE LOWER(username) = LOWER(?)').get(username);
+    }
+  } catch (err: any) {
+    handleDbError(err);
   }
 }
 
@@ -305,36 +319,40 @@ export async function getAdminByUsername(username: string): Promise<any> {
  * PRODUCTS ENDPOINTS
  */
 export async function getProducts(category?: string, search?: string): Promise<any[]> {
-  if (isSupabaseEnabled && supabase) {
-    let q = supabase.from('products').select('*');
-    if (category && category !== 'All') {
-      q = q.eq('category', category);
-    }
-    if (search && search.trim() !== '') {
-      q = q.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
-    }
-    const { data, error } = await q;
-    if (error) throw error;
-    return data || [];
-  } else {
-    let queryStr = 'SELECT * FROM products';
-    const params: any[] = [];
-    const conditions: string[] = [];
+  try {
+    if (isSupabaseEnabled && supabase) {
+      let q = supabase.from('products').select('*');
+      if (category && category !== 'All') {
+        q = q.eq('category', category);
+      }
+      if (search && search.trim() !== '') {
+        q = q.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    } else {
+      let queryStr = 'SELECT * FROM products';
+      const params: any[] = [];
+      const conditions: string[] = [];
 
-    if (category && category !== 'All') {
-      conditions.push('category = ?');
-      params.push(category);
-    }
+      if (category && category !== 'All') {
+        conditions.push('category = ?');
+        params.push(category);
+      }
 
-    if (search && search.trim() !== '') {
-      conditions.push('(name LIKE ? OR description LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`);
-    }
+      if (search && search.trim() !== '') {
+        conditions.push('(name LIKE ? OR description LIKE ?)');
+        params.push(`%${search}%`, `%${search}%`);
+      }
 
-    if (conditions.length > 0) {
-      queryStr += ' WHERE ' + conditions.join(' AND ');
+      if (conditions.length > 0) {
+        queryStr += ' WHERE ' + conditions.join(' AND ');
+      }
+      return db.prepare(queryStr).all(...params);
     }
-    return db.prepare(queryStr).all(...params);
+  } catch (err: any) {
+    handleDbError(err);
   }
 }
 
