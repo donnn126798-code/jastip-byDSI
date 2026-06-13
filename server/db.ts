@@ -319,29 +319,15 @@ class SqliteSimulator {
 }
 
 
-// Helpers to handle database fallback transparently when Supabase tables are missing
+// Helpers to handle database fallback transparently when Supabase tables are missing or misconfigured
 export function checkAndSetFallback(err: any): boolean {
   if (!isSupabaseEnabled) return false;
   
-  const msg = (err?.message || '').toLowerCase();
-  const code = err?.code || '';
-  
-  if (
-    code === 'PGRST125' || 
-    code === '42P01' || 
-    code === 'PGRST116' ||
-    msg.includes('relation') || 
-    msg.includes('invalid path') || 
-    msg.includes('does not exist') ||
-    msg.includes('relation "admins" does not exist')
-  ) {
-    if (!fallbackToSqlite) {
-      console.warn('[DSI Database] WARNING: Supabase has non-existent tables/relations. Automatically falling back to Local SQLite database to ensure the app continues working flawlessly! ⚠️💾');
-      fallbackToSqlite = true;
-    }
-    return true;
+  if (!fallbackToSqlite) {
+    console.warn('[DSI Database] WARNING: Supabase query or connection encountered an error. Automatically falling back to Simulator/SQLite database to ensure the app continues working flawlessly! ⚠️ Error details:', err?.message || err);
+    fallbackToSqlite = true;
   }
-  return false;
+  return true;
 }
 
 export async function dbCall<T>(supabaseFn: () => Promise<T>, sqliteFn: () => T): Promise<T> {
@@ -361,7 +347,8 @@ export async function dbCall<T>(supabaseFn: () => Promise<T>, sqliteFn: () => T)
 // Always initialize SQLite database as fallback or local storage option
 try {
   const requireLocal = createRequire(import.meta.url);
-  const Database = requireLocal('better-sqlite3');
+  const sqliteModuleName = 'better-sqlite3';
+  const Database = requireLocal(sqliteModuleName);
 
   // Ensure /database directory exists for local SQLite mode
   const dbDir = join(process.cwd(), 'database');
