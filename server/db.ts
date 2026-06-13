@@ -346,6 +346,9 @@ export async function dbCall<T>(supabaseFn: () => Promise<T>, sqliteFn: () => T)
 
 // Always initialize SQLite database as fallback or local storage option
 try {
+  if (process.env.VERCEL) {
+    throw new Error('Running in Vercel serverless environment: Skipping native SQLITE loading to prevent runtime errors.');
+  }
   const requireLocal = createRequire(import.meta.url);
   const sqliteModuleName = 'better-sqlite3';
   const Database = requireLocal(sqliteModuleName);
