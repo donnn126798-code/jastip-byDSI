@@ -29,12 +29,20 @@ import {
   getTestimonials,
   createTestimonial,
   deleteTestimonial,
-  isSupabaseEnabled
+  isSupabaseEnabled,
+  fallbackToSqlite
 } from './server/db.js';
 
 const app = express();
 app.use(express.json());
 export { app };
+
+app.get('/api/db-status', (req: Request, res: Response) => {
+  return res.json({
+    isSupabaseEnabled,
+    fallbackToSqlite
+  });
+});
 
 // Token for simple administration authentication
 const ADMIN_TOKEN = 'bydsi-admin-logged-in-token-2026';

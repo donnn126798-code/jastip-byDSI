@@ -8,7 +8,7 @@ import {
   TrendingUp, ShoppingBag, Users, DollarSign, Package, Trash2, 
   Edit3, Plus, RefreshCw, BarChart2, ShieldAlert, LogOut, Check, Search, Filter,
   Download, Eye, MessageSquare, CheckSquare, FileText, CheckCircle, ExternalLink, Calendar, Info,
-  Receipt, Printer, Copy
+  Receipt, Printer, Copy, Database
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -70,6 +70,7 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [dbStatus, setDbStatus] = useState<{ isSupabaseEnabled: boolean; fallbackToSqlite: boolean } | null>(null);
 
   // Product Modals / Forms
   const [productFormOpen, setProductFormOpen] = useState(false);
@@ -112,6 +113,17 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
     setLoading(true);
     setErrorMsg(null);
     try {
+      // Db Status check
+      try {
+        const rDbStatus = await fetch('/api/db-status');
+        if (rDbStatus.ok) {
+          const dataStatus = await rDbStatus.json();
+          setDbStatus(dataStatus);
+        }
+      } catch (e) {
+        console.warn('Failed to check database status:', e);
+      }
+
       // Products
       const rProds = await fetch('/api/products');
       const dataProds = await rProds.json();
@@ -382,6 +394,21 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
           <div>
             <p className="font-semibold">Kesalahan Server Butik</p>
             <p className="text-xs text-red-500 mt-1">{errorMsg}</p>
+          </div>
+        </div>
+      )}
+
+      {dbStatus?.fallbackToSqlite && (
+        <div id="sqlite-fallback-info-alert" className="bg-amber-50/50 text-amber-800 border border-amber-200/50 rounded-2xl p-5 mb-8 text-sm flex gap-4 items-start">
+          <Database className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-amber-900">Mode Database Cadangan Aktif (SQLite) 💾</p>
+            <p className="text-xs text-amber-700/95 mt-1.5 leading-relaxed">
+              Halo Kak <strong>Dony</strong>! Sistem mendeteksi bahwa akun Supabase Anda belum memiliki tabel-tabel database yang diperlukan (belum dideploy penuh). Agar butik online Anda tetap bisa berjalan 100% lancar tanpa hambatan, sistem kami **secara otomatis mengalihkan penyimpanan ke database SQLite lokal**.
+            </p>
+            <p className="text-xs text-amber-700/95 mt-1 leading-relaxed">
+              Semua fitur admin, mulai dari menambah produk, mengubah status pesanan, mencetak e-invoice, hingga ekspor data, dapat Anda gunakan secara penuh sekarang!
+            </p>
           </div>
         </div>
       )}

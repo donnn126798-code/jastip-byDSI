@@ -6,16 +6,8 @@
       "destination": "/api/index.ts"
     },
     {
-      "source": "/assets/(.*)",
-      "destination": "/dist/assets/$1"
-    },
-    {
-      "source": "/((?!api/|assets/|.*\\.[a-zA-Z0-9]+$).*)",
-      "destination": "/dist/index.html"
-    },
-    {
-      "source": "/(.*\\.[a-zA-Z0-9]+)$",
-      "destination": "/dist/$1"
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ]
 }

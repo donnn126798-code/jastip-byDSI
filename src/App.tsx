@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Instagram, MessageCircle, ShoppingBag, Sparkles, Phone, ArrowUpRight, 
-  MapPin, Clock, CreditCard, Lock, Menu, X, ShieldAlert, Eye, EyeOff
+  MapPin, Clock, CreditCard, Lock, Menu, X, ShieldAlert, Eye, EyeOff, Database
 } from 'lucide-react';
 import ProductCatalog from './components/ProductCatalog';
 import OrderForm from './components/OrderForm';
@@ -33,6 +33,18 @@ export default function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
+  const [dbStatus, setDbStatus] = useState<{ isSupabaseEnabled: boolean; fallbackToSqlite: boolean } | null>(null);
+
+  // Check Database status on mount
+  useEffect(() => {
+    fetch('/api/db-status')
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error();
+      })
+      .then((data) => setDbStatus(data))
+      .catch((e) => console.warn('Failed to fetch API database status:', e));
+  }, []);
 
   // Auto Scroll to Top on Tab switch to preserve elegant layout feel
   useEffect(() => {
@@ -484,6 +496,51 @@ export default function App() {
                     <div className="bg-red-50 text-red-650 border border-red-100 rounded-xl p-4 text-xs mb-6 flex gap-2 items-center">
                       <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
                       <p>{adminError}</p>
+                    </div>
+                  )}
+
+                  {/* Database Diagnostic Status */}
+                  {dbStatus && (
+                    <div className="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-500">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5 text-[9px]">
+                          <Database className="w-3 w-3 text-pink-400 shrink-0" /> Status Database
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[8px] uppercase tracking-wider font-bold ${
+                          dbStatus.isSupabaseEnabled && !dbStatus.fallbackToSqlite
+                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                            : 'bg-amber-50 text-amber-600 border border-amber-100'
+                        }`}>
+                          {dbStatus.isSupabaseEnabled && !dbStatus.fallbackToSqlite ? 'Supabase Aktif' : 'Simulator Aktif'}
+                        </span>
+                      </div>
+                      
+                      {dbStatus.isSupabaseEnabled && dbStatus.fallbackToSqlite ? (
+                        <div className="space-y-1 text-amber-800 leading-relaxed font-light">
+                          <p>
+                            ⚠️ Koneksi ke Supabase terdeteksi, namun tabel-tabel data belum dibuat di editor database Supabase Anda.
+                          </p>
+                          <p className="text-[10px] bg-amber-50 p-2 rounded-lg border border-amber-100 mt-1.5 text-amber-700">
+                            <strong>Solusi:</strong> Silakan masuk ke dashboard Supabase Anda, buka menu <strong>SQL Editor</strong>, salin seluruh isi file <code className="bg-amber-100/55 px-1 py-0.5 rounded text-amber-900 font-mono text-[9px]">supabase_schema.sql</code>, tempel (paste) di sana, lalu klik tombol <strong>Run</strong>.
+                          </p>
+                          <p className="mt-2 text-[10px] text-slate-400">
+                            *Sistem saat ini dialihkan secara otomatis ke simulator in-memory agar Anda tetap bisa masuk portal admin dengan akun <strong>Dony</strong> sandi <strong>JastipDesiRistanti123</strong>.
+                          </p>
+                        </div>
+                      ) : !dbStatus.isSupabaseEnabled ? (
+                        <div className="space-y-1 text-slate-400 leading-relaxed font-light">
+                          <p>
+                            Sistem sedang berjalan dalam <strong>Mode Simulator In-Memory</strong> yang aman.
+                          </p>
+                          <p className="text-[10px] mt-1.5">
+                            Data akan di-reset setiap kali server dimulai ulang. Untuk mengaktifkan mode cloud permanen, hubungkan kredensial Supabase Anda di platform hosting / Cloud Run Anda.
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="font-light leading-relaxed text-slate-400">
+                          Sistem jastip Anda terhubung secara real-time dengan database cloud Supabase dengan aman.
+                        </p>
+                      )}
                     </div>
                   )}
 
