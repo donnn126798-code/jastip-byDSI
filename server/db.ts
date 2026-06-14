@@ -1032,3 +1032,186 @@ export async function deleteTestimonial(id: string): Promise<boolean> {
     }
   );
 }
+
+/**
+ * AUTO SEED SUPABASE IF EMPTY
+ */
+export async function autoSeedSupabase() {
+  if (!isSupabaseEnabled || !supabase) return;
+  
+  console.log('[DSI Database] Menguji apakah database Supabase memerlukan seeding otomatis... 🚀');
+  try {
+    // 1. Check if admins has tables and needs seeding
+    const { data: existingAdmins, error: adminErr } = await supabase
+      .from('admins')
+      .select('username')
+      .limit(1);
+      
+    if (adminErr) {
+       console.warn('[DSI Database] Supabase admins table check error (tabel mungkin belum dibuat):', adminErr.message);
+       // We do not return immediately, we can try other tables too
+    } else if (!existingAdmins || existingAdmins.length === 0) {
+      console.log('[DSI Database] Melakukan seed data admin awal di Supabase...');
+      const targetAdmins = [
+        { id: 'admin-dony', username: 'Dony', password_hash: 'd26914ed0dc3fc64b97f0a9f5cbea899f84852934eedee2bcab42fbe59c3cca036a44cbd935ee588b43bd7ba78f1f56860ac45330a133df1fe881c15f9ee29fe' },
+        { id: 'admin-desi', username: 'Desi', password_hash: 'd26914ed0dc3fc64b97f0a9f5cbea899f84852934eedee2bcab42fbe59c3cca036a44cbd935ee588b43bd7ba78f1f56860ac45330a133df1fe881c15f9ee29fe' },
+        { id: 'admin-rori', username: 'Rori', password_hash: 'd26914ed0dc3fc64b97f0a9f5cbea899f84852934eedee2bcab42fbe59c3cca036a44cbd935ee588b43bd7ba78f1f56860ac45330a133df1fe881c15f9ee29fe' }
+      ];
+      await supabase.from('admins').insert(targetAdmins);
+    }
+
+    // 2. Check & Seed Products
+    const { data: existingProducts, error: prodErr } = await supabase
+      .from('products')
+      .select('id')
+      .limit(1);
+      
+    if (prodErr) {
+      console.warn('[DSI Database] Supabase products table check error:', prodErr.message);
+    } else if (!existingProducts || existingProducts.length === 0) {
+      console.log('[DSI Database] Melakukan seed data katalog jastip awal di Supabase...');
+      const seedProducts = [
+        {
+          id: 'prod-001',
+          name: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
+          category: 'Stanley',
+          description: 'The iconic Stanley Quencher in a stunning, bright pastel matte pink finish. Your perfect companion for premium all-day hydration. Comes with the modern FlowState™ 3-way lid.',
+          price: 1150000,
+          stock: 12,
+          image: '/pastel_pink_tumbler.png'
+        },
+        {
+          id: 'prod-002',
+          name: 'Stanley Quencher H2.0 (40oz) - Limited Edition Floral Watercolor',
+          category: 'Limited Edition',
+          description: 'An elegant limited-edition Stanley tumbler adorned with exquisite blush pink watercolor florals. Features an insulated double-wall vacuum stainless steel design. Intricately numbered.',
+          price: 1450000,
+          stock: 4,
+          image: '/floral_watercolor_tumbler.png'
+        },
+        {
+          id: 'prod-003',
+          name: 'Sakura Blossom Curated Gift Set Box',
+          category: 'Gift Set',
+          description: 'A beautifully-curated luxury boutique gift box. Includes a pastel pink tumbler, custom satin sleeping mask, vanilla orchid lavender aromatherapy candle, and a gold-stamped greeting card.',
+          price: 1950000,
+          stock: 6,
+          image: '/sakura_gift_box.png'
+        },
+        {
+          id: 'prod-004',
+          name: 'Handcrafted Blush Pink Leather Crossbody Strap',
+          category: 'Tumbler Accessories',
+          description: 'Carry your luxury tumbler in ultimate hands-free style. Lovingly hand-cut from premium full-grain Italian leather in a soft rose blush color, featuring beautiful, heavy brass clips.',
+          price: 380000,
+          stock: 20,
+          image: '/pink_leather_strap.png'
+        },
+        {
+          id: 'prod-005',
+          name: 'Stanley IceFlow Flip Straw Tumbler (30oz) - Soft Rose',
+          category: 'Stanley',
+          description: 'Designed for on-the-go luxury life. This beautiful soft rose tumbler features leakproof flip straw technology and an integrated folding carrying handle.',
+          price: 1050000,
+          stock: 8,
+          image: '/soft_rose_tumbler.png'
+        },
+        {
+          id: 'prod-006',
+          name: 'Rose Gold Metallic Stanley Accessory Charm Set',
+          category: 'Tumbler Accessories',
+          description: 'Dazzle up your Stanley Quencher. Premium metallic rose-gold personalized name tag and matching silicon straw cover shaped like a beautiful pink cherry blossom blossom.',
+          price: 180000,
+          stock: 15,
+          image: '/rose_gold_charms.png'
+        }
+      ];
+      await supabase.from('products').insert(seedProducts);
+    }
+
+    // 3. Check & Seed Testimonials
+    const { data: existingTestimonials, error: testiErr } = await supabase
+      .from('testimonials')
+      .select('id')
+      .limit(1);
+
+    if (testiErr) {
+      console.warn('[DSI Database] Supabase testimonials table check error:', testiErr.message);
+    } else if (!existingTestimonials || existingTestimonials.length === 0) {
+      console.log('[DSI Database] Melakukan seed data testimoni awal di Supabase...');
+      const seedTestimonials = [
+        {
+          id: 'testi-001',
+          customer_name: 'Anindya Kirana',
+          review: 'My pink Stanley arrived in perfect condition! The packaging was so beautiful, like unboxing a luxury designer piece. Truly reliable personal shopping service. Custom notes were handwritten too!',
+          rating: 5,
+          image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'
+        },
+        {
+          id: 'testi-002',
+          customer_name: 'Sherly Septiani',
+          review: 'Very fast and responsive! Best Jastip service I have ever tried. Always get the rarest limited edition Stanley colors that other shoppers cannot secure. 10/10 recommended for active tumbler lovers!',
+          rating: 5,
+          image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150'
+        },
+        {
+          id: 'testi-003',
+          customer_name: 'Nadia Salsabila',
+          review: 'The Sakura Blossom Gift Set was the absolute perfect bridal shower gift for my best friend. The satin-lined box was stunningly luxurious. Jastip byDSI provides exceptional high-society aesthetic!',
+          rating: 5,
+          image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150'
+        }
+      ];
+      await supabase.from('testimonials').insert(seedTestimonials);
+    }
+    
+    console.log('[DSI Database] Proses pengecekan & seeding Supabase selesai dengan aman! Cloud database siap pakai.');
+  } catch (err: any) {
+    console.warn('[DSI Database] Seeding database Supabase gagal/terlewati:', err.message || err);
+  }
+}
+
+/**
+ * DATABASE DIAGNOSTICS FOR SUPPORT PANEL
+ */
+export async function getDbDiagnostics() {
+  const result = {
+    isSupabaseEnabled,
+    supabaseUrlConfigured: !!supabaseUrl,
+    supabaseAnonKeyConfigured: !!supabaseAnonKey,
+    fallbackToSqlite,
+    isVercel: !!process.env.VERCEL,
+    supabaseConnectionStatus: 'untested',
+    supabaseError: null as string | null,
+    sqliteType: db ? db.constructor.name : 'none',
+    catalogCount: 0
+  };
+
+  if (isSupabaseEnabled && supabase) {
+    try {
+      const { data, error } = await supabase.from('products').select('id');
+      if (error) {
+        result.supabaseConnectionStatus = 'error';
+        result.supabaseError = error.message;
+      } else {
+        result.supabaseConnectionStatus = 'connected_and_healthy';
+        result.catalogCount = data ? data.length : 0;
+      }
+    } catch (err: any) {
+      result.supabaseConnectionStatus = 'error_exception';
+      result.supabaseError = err?.message || String(err);
+    }
+  } else {
+    result.supabaseConnectionStatus = 'disabled';
+  }
+
+  return result;
+}
+
+// Jalankan auto-seed secara asinkron di background saat modul ini dimuat jika Supabase diaktifkan
+if (isSupabaseEnabled && supabase) {
+  autoSeedSupabase().catch((err) => {
+    console.error('[DSI Database] Auto seed fatal error:', err);
+  });
+}
+

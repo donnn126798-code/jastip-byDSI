@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingBag, Sparkles, Filter, ChevronRight } from 'lucide-react';
+import { Search, ShoppingBag, Sparkles, Filter, ChevronRight, Database, AlertCircle, CheckCircle, RefreshCw, HelpCircle } from 'lucide-react';
 import { Product, CategoryType, categoryLabels } from '../types';
 
 interface ProductCatalogProps {
@@ -26,6 +26,47 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'All'>('All');
+  const [diagInfo, setDiagInfo] = useState<any>(null);
+  const [checkingDiag, setCheckingDiag] = useState(false);
+  const [seedingLoading, setSeedingLoading] = useState(false);
+  const [seedingText, setSeedingText] = useState('');
+
+  const checkDiagnostics = async () => {
+    setCheckingDiag(true);
+    try {
+      const res = await fetch('/api/db-diagnostics');
+      if (res.ok) {
+        const data = await res.json();
+        setDiagInfo(data);
+      }
+    } catch (err) {
+      console.error('Error fetching db diagnostics:', err);
+    } finally {
+      setCheckingDiag(false);
+    }
+  };
+
+  const handleManualSeed = async () => {
+    setSeedingLoading(true);
+    setSeedingText('Sedang menanam data (seeding)...');
+    try {
+      const res = await fetch('/api/db-seed', { method: 'POST' });
+      if (res.ok) {
+        setSeedingText('✨ Berhasil! Data jastip, testimoni & admin telah terisi.');
+        setTimeout(() => {
+          fetchProducts();
+          setDiagInfo(null);
+          setSeedingText('');
+        }, 1800);
+      } else {
+        setSeedingText('Gagal menanam data. Pastikan semua tabel sudah dibuat di Supabase.');
+      }
+    } catch (err) {
+      setSeedingText('Error saat menanam data.');
+    } finally {
+      setSeedingLoading(false);
+    }
+  };
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -55,6 +96,14 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
     }, 400); // Debounce typing searches
     return () => clearTimeout(delayDebounce);
   }, [selectedCategory, search]);
+
+  useEffect(() => {
+    if (!loading && products.length === 0) {
+      checkDiagnostics();
+    } else {
+      setDiagInfo(null);
+    }
+  }, [loading, products.length]);
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8">
@@ -105,12 +154,145 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
           <p className="text-xs font-light text-slate-400 tracking-wider">Membuka katalog butik...</p>
         </div>
       ) : products.length === 0 ? (
-        <div className="text-center py-20 bg-white border border-dashed border-pink-100 rounded-3xl p-8 max-w-md mx-auto">
-          <Sparkles className="w-8 h-8 text-pink-300 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-slate-700">Kurasi Tidak Ditemukan</p>
-          <p className="text-xs font-light text-slate-400 mt-2">
-            Coba sesuaikan kata kunci pencarian Anda atau lihat kategori butik yang lain.
-          </p>
+        <div className="w-full max-w-lg mx-auto space-y-6">
+          <div className="text-center py-12 bg-white border border-dashed border-pink-100 rounded-3xl p-8 shadow-xs">
+            <Sparkles className="w-8 h-8 text-pink-300 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-slate-700">Kurasi Tidak Ditemukan</p>
+            <p className="text-xs font-light text-slate-400 mt-2">
+              Coba sesuaikan kata kunci pencarian Anda atau lihat kategori butik yang lain.
+            </p>
+          </div>
+
+          {/* Database Setup Diagnostics Helper Block */}
+          {(checkingDiag || diagInfo) && (
+            <div className="p-6 bg-slate-50 border border-slate-100 rounded-2xl text-xs text-slate-650 shadow-xs">
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200/55">
+                <span className="font-bold uppercase tracking-widest text-slate-800 flex items-center gap-2 text-[10px]">
+                  <Database className="w-4 h-4 text-pink-400" /> Diagnosis Status Database Jastip
+                </span>
+                {checkingDiag ? (
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3 animate-spin" /> Memeriksa...
+                  </span>
+                ) : (
+                  <span className={`px-2 py-0.5 rounded-full text-[8px] uppercase tracking-wider font-bold ${
+                    diagInfo?.isSupabaseEnabled && !diagInfo?.fallbackToSqlite
+                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                      : 'bg-amber-50 text-amber-600 border border-amber-100'
+                  }`}>
+                    {diagInfo?.isSupabaseEnabled && !diagInfo?.fallbackToSqlite ? 'Supabase cloud aktif' : 'Simulator Aktif'}
+                  </span>
+                )}
+              </div>
+
+              {diagInfo && (
+                <div className="space-y-4">
+                  {/* CASE 1: Supabase configured and healthy but empty database */}
+                  {diagInfo.isSupabaseEnabled && diagInfo.supabaseConnectionStatus === 'connected_and_healthy' && diagInfo.catalogCount === 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2 text-slate-600 leading-relaxed font-light">
+                        <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-amber-900 text-[11px] uppercase tracking-wider">Katalog di Cloud Masih Kosong</p>
+                          <p className="mt-1">Koneksi ke database cloud Supabase sukses <strong>terhubung & sehat!</strong> Namun saat ini belum ada data produk sama sekali di tabel Anda.</p>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-white p-4 rounded-xl border border-slate-100/50 space-y-3">
+                        <p className="text-[10px] text-slate-400 font-light">
+                          Gunakan tombol di bawah ini untuk mengisi (seed) produk-produk Stanley, paket kado, dan testimoni bawaan ke Supabase Anda dalam 1 detik:
+                        </p>
+                        
+                        <button
+                          id="btn-seed-supabase-direct"
+                          disabled={seedingLoading}
+                          onClick={handleManualSeed}
+                          className="flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-pink-400 to-pink-500 hover:from-pink-500 hover:to-pink-600 disabled:opacity-50 text-white font-bold tracking-wider uppercase text-[10px] rounded-lg cursor-pointer transition-all shadow-sm"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${seedingLoading ? 'animate-spin' : ''}`} />
+                          Isi Data Awal Otomatis (Seed Database)
+                        </button>
+                        
+                        {seedingText && (
+                          <p className="text-[10px] text-center text-pink-500 font-semibold animate-pulse">{seedingText}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CASE 2: Supabase configured, but connection throws error (probably tables do not exist) */}
+                  {diagInfo.isSupabaseEnabled && (diagInfo.supabaseConnectionStatus === 'error' || diagInfo.supabaseConnectionStatus === 'error_exception') && (
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2 text-slate-600 leading-relaxed font-light">
+                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-amber-900 text-[11px] uppercase tracking-wider">Tabel Supabase Belum Dibuat</p>
+                          <p className="mt-1 text-[11px]">Kredensial Supabase terdeteksi, namun query gagal karena <strong>tabel database belum dibuat</strong> di dashboard Supabase Anda.</p>
+                          <p className="text-[10px] text-slate-400 mt-1">Detail error: {diagInfo.supabaseError}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-xl border border-slate-100 space-y-3 text-[10.5px]">
+                        <p className="font-semibold text-slate-800">Cara mengatasinya:</p>
+                        <ol className="list-decimal pl-4 space-y-1.5 text-slate-500 font-light leading-relaxed">
+                          <li>Masuk ke <strong>dashboard Supabase Anda</strong>.</li>
+                          <li>Buka menu <strong>SQL Editor</strong> di bilah navigasi kiri.</li>
+                          <li>Buka kode skrip <code className="bg-slate-150 px-1 py-0.5 rounded text-pink-500 font-mono text-[9.5px]">supabase_schema.sql</code> yang ada di folder proyek website ini.</li>
+                          <li>Salin seluruh isinya, kemudian tempel (paste) di <strong>SQL Editor Supabase</strong> Anda.</li>
+                          <li>Klik tombol <strong>Run</strong> di kanan bawah untuk membuat seluruh tabel sekaligus menyiapkannya.</li>
+                        </ol>
+                        
+                        <div className="pt-2 border-t border-slate-100">
+                          <p className="text-[10px] text-slate-400 mb-2">Alternatif: Jika Anda ingin sistem mencoba mengalirkan kueri langsung untuk membuat data awal setelah Anda menjalankan SQL editor:</p>
+                          <button
+                            id="btn-seed-retry"
+                            disabled={seedingLoading}
+                            onClick={handleManualSeed}
+                            className="flex items-center justify-center gap-1 text-[9.5px] uppercase tracking-wider text-pink-500 font-bold border border-pink-200/50 hover:bg-pink-50 p-2 rounded-lg cursor-pointer"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${seedingLoading ? 'animate-spin' : ''}`} /> Selesai Mengonfigurasi, Coba Sinkronkan Sekarang
+                          </button>
+                        </div>
+                        {seedingText && (
+                          <p className="text-[9.5px] text-pink-500 font-semibold">{seedingText}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CASE 3: Supabase is NOT enabled yet */}
+                  {!diagInfo.isSupabaseEnabled && (
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2 text-slate-500 leading-relaxed font-light">
+                        <HelpCircle className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider">Mode Demo / Simulator Aktif</p>
+                          <p className="mt-1 text-[11px]">Sistem mendeteksi bahwa Supabase belum dihubungkan (kredensial di Vercel belum dikonfigurasi), sehingga sistem berjalan menggunakan <strong>Simulator In-Memory</strong>.</p>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-2">
+                        <p className="text-[10px] text-slate-400 leading-relaxed font-light">
+                          Jika di mode simulator ini data masih kosong, klik tombol di bawah untuk membuat demo produk seketika agar Anda bisa menguji fungsionalitas web:
+                        </p>
+                        <button
+                          id="btn-seed-simulator"
+                          disabled={seedingLoading}
+                          onClick={handleManualSeed}
+                          className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[9px] rounded-lg cursor-pointer transition-all"
+                        >
+                          Isi Data Demo Simulator
+                        </button>
+                        {seedingText && (
+                          <p className="text-[9.5px] text-center text-pink-500 font-semibold">{seedingText}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">

@@ -30,7 +30,9 @@ import {
   createTestimonial,
   deleteTestimonial,
   isSupabaseEnabled,
-  fallbackToSqlite
+  fallbackToSqlite,
+  getDbDiagnostics,
+  autoSeedSupabase
 } from './server/db.js';
 
 const app = express();
@@ -42,6 +44,25 @@ app.get('/api/db-status', (req: Request, res: Response) => {
     isSupabaseEnabled,
     fallbackToSqlite
   });
+});
+
+app.get('/api/db-diagnostics', async (req: Request, res: Response) => {
+  try {
+    const diag = await getDbDiagnostics();
+    return res.json(diag);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/db-seed', async (req: Request, res: Response) => {
+  try {
+    await autoSeedSupabase();
+    const diag = await getDbDiagnostics();
+    return res.json({ success: true, message: 'Seeding completed successfully', diagnostics: diag });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 // Token for simple administration authentication
