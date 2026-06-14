@@ -33,11 +33,11 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
   const [copiedTrackCode, setCopiedTrackCode] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
-  const handleSearch = async (e?: React.FormEvent) => {
+  const handleSearch = async (e?: React.FormEvent, isBackground = false) => {
     if (e) e.preventDefault();
     if (!code.trim()) return;
 
-    setLoading(true);
+    if (!isBackground) setLoading(true);
     setError(null);
     try {
       const formattedCode = code.trim().toUpperCase();
@@ -48,14 +48,17 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
       }
       const data = await res.json();
       setOrderData(data);
-      // Reset receipt form states when a new order is loaded
-      setReceiptFile(null);
-      setUploadedSuccess(false);
+      if (!isBackground) {
+        setReceiptFile(null);
+        setUploadedSuccess(false);
+      }
     } catch (err: any) {
-      setOrderData(null);
-      setError(err.message || 'Riwayat pelacakan tidak ditemukan untuk kode ini.');
+      if (!isBackground) {
+        setOrderData(null);
+        setError(err.message || 'Riwayat pelacakan tidak ditemukan untuk kode ini.');
+      }
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
@@ -214,6 +217,16 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
       return () => clearTimeout(delay);
     }
   }, [orderCode]);
+
+  React.useEffect(() => {
+    if (!orderData?.order?.order_code) return;
+
+    const interval = setInterval(() => {
+      handleSearch(undefined, true);
+    }, 4200); // Polling the tracking info silently in real-time
+
+    return () => clearInterval(interval);
+  }, [orderData?.order?.order_code]);
 
   // Map status to visual accents and icons in Indonesian
   const getStatusNode = (status: TrackingStatus) => {

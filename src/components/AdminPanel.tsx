@@ -109,8 +109,8 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
     'Authorization': `Bearer ${token}`
   };
 
-  const loadAllData = async () => {
-    setLoading(true);
+  const loadAllData = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     setErrorMsg(null);
     try {
       // Db Status check
@@ -147,14 +147,20 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
       setStats(dataStats);
 
     } catch (err: any) {
-      setErrorMsg(err.message || 'Connecting to SQLite failed.');
+      setErrorMsg(err.message || 'Connecting failed.');
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAllData();
+    loadAllData(false);
+
+    const interval = setInterval(() => {
+      loadAllData(true);
+    }, 4100); // Background poll active orders and stock levels in real-time
+
+    return () => clearInterval(interval);
   }, [token]);
 
   // Product form controllers
@@ -398,20 +404,7 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
         </div>
       )}
 
-      {dbStatus?.fallbackToSqlite && (
-        <div id="sqlite-fallback-info-alert" className="bg-amber-50/50 text-amber-800 border border-amber-200/50 rounded-2xl p-5 mb-8 text-sm flex gap-4 items-start">
-          <Database className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
-          <div>
-            <p className="font-semibold text-amber-900">Mode Database Cadangan Aktif (SQLite) 💾</p>
-            <p className="text-xs text-amber-700/95 mt-1.5 leading-relaxed">
-              Halo Kak <strong>Dony</strong>! Sistem mendeteksi bahwa akun Supabase Anda belum memiliki tabel-tabel database yang diperlukan (belum dideploy penuh). Agar butik online Anda tetap bisa berjalan 100% lancar tanpa hambatan, sistem kami **secara otomatis mengalihkan penyimpanan ke database SQLite lokal**.
-            </p>
-            <p className="text-xs text-amber-700/95 mt-1 leading-relaxed">
-              Semua fitur admin, mulai dari menambah produk, mengubah status pesanan, mencetak e-invoice, hingga ekspor data, dapat Anda gunakan secara penuh sekarang!
-            </p>
-          </div>
-        </div>
-      )}
+
 
       {/* Admin Subtabs Menu */}
       <div className="flex gap-2 p-1.5 bg-slate-50 rounded-2xl mb-8 border border-slate-100 max-w-md overflow-x-auto scrollbar-hide">
