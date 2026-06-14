@@ -8,7 +8,7 @@ import { readFileSync, existsSync } from 'fs';
 import crypto from 'crypto';
 import { initializeApp } from 'firebase/app';
 import { 
-  getFirestore, 
+  initializeFirestore, 
   collection, 
   doc, 
   getDoc, 
@@ -37,7 +37,9 @@ try {
   if (existsSync(configPath)) {
     const firebaseConfig = JSON.parse(readFileSync(configPath, 'utf8'));
     const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
+    db = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    }, firebaseConfig.firestoreDatabaseId);
     console.log('[DSI Database] Firebase Firestore Cloud Live activated! ☁️🔥');
   } else {
     console.warn('[DSI Database] firebase-applet-config.json not found! Unable to start Firestore.');

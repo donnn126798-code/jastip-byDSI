@@ -191,11 +191,11 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
                 </span>
               ) : (
                 <span className={`px-2 py-0.5 rounded-full text-[8.5px] uppercase tracking-wider font-bold ${
-                  diagInfo && diagInfo.isSupabaseEnabled && !diagInfo.fallbackToSqlite
+                  diagInfo && (diagInfo.isFirebaseEnabled || (diagInfo.isSupabaseEnabled && !diagInfo.fallbackToSqlite))
                     ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                     : 'bg-amber-50 text-amber-600 border border-amber-100'
                 }`}>
-                  {diagInfo ? (diagInfo.isSupabaseEnabled && !diagInfo.fallbackToSqlite ? 'Supabase cloud aktif' : 'Simulator Aktif') : 'Status tidak diketahui'}
+                  {diagInfo ? ((diagInfo.isFirebaseEnabled || (diagInfo.isSupabaseEnabled && !diagInfo.fallbackToSqlite)) ? 'Cloud Live Aktif' : 'Simulator Aktif') : 'Status tidak diketahui'}
                 </span>
               )}
             </div>
@@ -209,20 +209,20 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
 
             {diagInfo && (
               <div className="space-y-4">
-                {/* CASE 1: Supabase configured and healthy but empty database */}
-                {diagInfo.isSupabaseEnabled && diagInfo.supabaseConnectionStatus === 'connected_and_healthy' && diagInfo.catalogCount === 0 && (
+                {/* CASE 1: Cloud Database configured and healthy but empty database */}
+                {(diagInfo.isFirebaseEnabled || diagInfo.isSupabaseEnabled) && diagInfo.supabaseConnectionStatus === 'connected_and_healthy' && diagInfo.catalogCount === 0 && (
                   <div className="space-y-3">
                     <div className="flex items-start gap-2 text-slate-600 leading-relaxed font-light">
                       <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                       <div>
                         <p className="font-semibold text-amber-900 text-[11px] uppercase tracking-wider">Katalog di Cloud Masih Kosong</p>
-                        <p className="mt-1">Koneksi ke database cloud Supabase sukses <strong>terhubung & sehat!</strong> Namun saat ini belum ada data produk sama sekali di tabel Anda.</p>
+                        <p className="mt-1">Koneksi ke database cloud {diagInfo.isFirebaseEnabled ? 'Firebase Firestore' : 'Supabase'} sukses <strong>terhubung & sehat!</strong> Namun saat ini belum ada data produk sama sekali di tabel Anda.</p>
                       </div>
                     </div>
                     
                     <div className="bg-white p-4 rounded-xl border border-slate-100/50 space-y-3">
                       <p className="text-[10px] text-slate-400 font-light">
-                        Gunakan tombol di bawah ini untuk mengisi (seed) produk-produk Stanley, paket kado, dan testimoni bawaan ke Supabase Anda dalam 1 detik:
+                        Gunakan tombol di bawah ini untuk mengisi (seed) produk-produk Stanley, paket kado, dan testimoni bawaan ke database cloud Anda dalam 1 detik:
                       </p>
                       
                       <button
@@ -242,30 +242,25 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
                   </div>
                 )}
 
-                {/* CASE 2: Supabase configured, but connection throws error (probably tables do not exist) */}
-                {diagInfo.isSupabaseEnabled && (diagInfo.supabaseConnectionStatus === 'error' || diagInfo.supabaseConnectionStatus === 'error_exception') && (
+                {/* CASE 2: Cloud Database configured, but connection throws error */}
+                {(diagInfo.isFirebaseEnabled || diagInfo.isSupabaseEnabled) && (diagInfo.supabaseConnectionStatus === 'error' || diagInfo.supabaseConnectionStatus === 'error_exception') && (
                   <div className="space-y-3">
                     <div className="flex items-start gap-2 text-slate-600 leading-relaxed font-light">
                       <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-semibold text-amber-900 text-[11px] uppercase tracking-wider">Tabel Supabase Belum Dibuat</p>
-                        <p className="mt-1 text-[11px]">Kredensial Supabase terdeteksi, namun query gagal karena <strong>tabel database belum dibuat</strong> di dashboard Supabase Anda.</p>
+                        <p className="font-semibold text-amber-900 text-[11px] uppercase tracking-wider">Skema Database Cloud Belum Siap</p>
+                        <p className="mt-1 text-[11px]">Kredensial terdeteksi, namun query gagal karena <strong>tabel/dokumen belum siap</strong> di dashboard database cloud Anda.</p>
                         <p className="text-[10px] text-slate-400 mt-1">Detail error: {diagInfo.supabaseError}</p>
                       </div>
                     </div>
 
                     <div className="bg-white p-4 rounded-xl border border-slate-100 space-y-3 text-[10.5px]">
                       <p className="font-semibold text-slate-800">Cara mengatasinya:</p>
-                      <ol className="list-decimal pl-4 space-y-1.5 text-slate-500 font-light leading-relaxed">
-                        <li>Masuk ke <strong>dashboard Supabase Anda</strong>.</li>
-                        <li>Buka menu <strong>SQL Editor</strong> di bilah navigasi kiri.</li>
-                        <li>Buka kode skrip <code className="bg-slate-150 px-1 py-0.5 rounded text-pink-500 font-mono text-[9.5px]">supabase_schema.sql</code> yang ada di folder proyek website ini.</li>
-                        <li>Salin seluruh isinya, kemudian tempel (paste) di <strong>SQL Editor Supabase</strong> Anda.</li>
-                        <li>Klik tombol <strong>Run</strong> di kanan bawah untuk membuat seluruh tabel sekaligus menyiapkannya.</li>
-                      </ol>
+                      <p className="text-slate-500 font-light leading-relaxed">
+                        Jika menggunakan Supabase, Anda dapat mengimpor file <code className="bg-slate-150 px-1 py-0.5 rounded text-pink-500 font-mono text-[9.5px]">supabase_schema.sql</code> di SQL Editor Supabase Anda. Jika menggunakan Firebase, pastikan keamanan rules dideploy.
+                      </p>
                       
                       <div className="pt-2 border-t border-slate-100">
-                        <p className="text-[10px] text-slate-400 mb-2">Alternatif: Jika Anda ingin sistem mencoba mengalirkan kueri langsung untuk membuat data awal setelah Anda menjalankan SQL editor:</p>
                         <button
                           id="btn-seed-retry"
                           disabled={seedingLoading}
@@ -282,8 +277,8 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
                   </div>
                 )}
 
-                {/* CASE 3: Supabase is NOT enabled yet, using local Simulator */}
-                {!diagInfo.isSupabaseEnabled && (
+                {/* CASE 3: Cloud Database is NOT enabled yet, using local Simulator */}
+                {!diagInfo.isFirebaseEnabled && !diagInfo.isSupabaseEnabled && (
                   <div className="space-y-2">
                     <div className="flex items-start gap-2 text-slate-500 leading-relaxed font-light">
                       <HelpCircle className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
@@ -292,7 +287,7 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
                         <p className="mt-1 text-[11px]">
                           {diagInfo.apiFailed 
                             ? "Server backend tidak merespons diagnostics (mungkin sedang dimulai ulang). Sistem saat ini dijalankan menggunakan fail-safe in-memory simulator." 
-                            : "Sistem mendeteksi bahwa Supabase belum dihubungkan (kredensial di Vercel belum dikonfigurasi), sehingga sistem berjalan menggunakan Simulator In-Memory."}
+                            : "Sistem mendeteksi bahwa database cloud belum dihubungkan, sehingga sistem berjalan menggunakan Simulator In-Memory."}
                         </p>
                       </div>
                     </div>
@@ -324,15 +319,15 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
                   </div>
                 )}
 
-                {/* CASE 4: Supabase configured, healthy, and HAS products */}
-                {diagInfo.isSupabaseEnabled && diagInfo.supabaseConnectionStatus === 'connected_and_healthy' && diagInfo.catalogCount > 0 && (
+                {/* CASE 4: Cloud Database configured, healthy, and HAS products */}
+                {(diagInfo.isFirebaseEnabled || diagInfo.isSupabaseEnabled) && diagInfo.supabaseConnectionStatus === 'connected_and_healthy' && diagInfo.catalogCount > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-start gap-2 text-slate-600 leading-relaxed font-light">
                       <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-semibold text-emerald-900 text-[11px] uppercase tracking-wider">Koneksi & Data Supabase Sehat! ✨</p>
+                        <p className="font-semibold text-emerald-950 text-[11px] uppercase tracking-wider">Koneksi & Data Cloud Sehat! ✨</p>
                         <p className="mt-1 text-[11px]">
-                          Penyimpanan cloud Supabase aktif dan berhasil memuat <strong>{diagInfo.catalogCount} produk</strong> dengan lancar. Tampilan kosong di atas murni karena pencarian Anda tidak memiliki kecocokan produk di katalog.
+                          Penyimpanan cloud {diagInfo.isFirebaseEnabled ? 'Firebase Firestore' : 'Supabase'} aktif dan berhasil memuat <strong>{diagInfo.catalogCount} produk</strong> dengan lancar.
                         </p>
                       </div>
                     </div>
