@@ -118,12 +118,8 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
   }, [selectedCategory, search]);
 
   useEffect(() => {
-    if (!loading && products.length === 0) {
-      checkDiagnostics();
-    } else {
-      setDiagInfo(null);
-    }
-  }, [loading, products.length]);
+    checkDiagnostics();
+  }, []);
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8">
@@ -327,6 +323,21 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
                     </div>
                   </div>
                 )}
+
+                {/* CASE 4: Supabase configured, healthy, and HAS products */}
+                {diagInfo.isSupabaseEnabled && diagInfo.supabaseConnectionStatus === 'connected_and_healthy' && diagInfo.catalogCount > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2 text-slate-600 leading-relaxed font-light">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-emerald-900 text-[11px] uppercase tracking-wider">Koneksi & Data Supabase Sehat! ✨</p>
+                        <p className="mt-1 text-[11px]">
+                          Penyimpanan cloud Supabase aktif dan berhasil memuat <strong>{diagInfo.catalogCount} produk</strong> dengan lancar. Tampilan kosong di atas murni karena pencarian Anda tidak memiliki kecocokan produk di katalog.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -442,6 +453,73 @@ export default function ProductCatalog({ onSelectItem }: ProductCatalogProps) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Database Setup Diagnostics Helper Block – ALWAYS VISIBLE WHEN DATABASE IN FALLBACK MODE */}
+      {products.length > 0 && diagInfo?.fallbackToSqlite && (
+        <div className="mt-12 p-6 bg-slate-50 border border-slate-100 rounded-3xl text-xs text-slate-650 shadow-xs max-w-2xl mx-auto">
+          <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200/55">
+            <span className="font-bold uppercase tracking-widest text-slate-800 flex items-center gap-2 text-[10px]">
+              <Database className="w-4 h-4 text-pink-400" /> Status Koneksi Database Jastip
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[8.5px] uppercase tracking-wider font-bold bg-amber-50 text-amber-600 border border-amber-100">
+              Mode Cadangan Aktif
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 text-slate-600 leading-relaxed font-light">
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-900 text-[11px] uppercase tracking-wider">Berjalan Menggunakan Database Cadangan (SQLite)</p>
+                <p className="mt-1 text-[11px]">Sistem mendeteksi kegagalan koneksi kueri ke cloud database Supabase Anda, sehingga penyimpanan dialihkan otomatis ke SQLite/Simulator lokal agar website tetap fungsional.</p>
+                <p className="text-[10px] text-slate-400 mt-1">Detail error: {diagInfo.supabaseError || "Koneksi tidak terhubung"}</p>
+              </div>
+            </div>
+
+            <details className="group bg-white p-4 rounded-xl border border-slate-100 space-y-2">
+              <summary className="cursor-pointer text-[10px] text-pink-500 font-bold uppercase tracking-wider select-none list-none flex items-center justify-between hover:text-pink-600 transition-all">
+                <span>Panduan Sinkronisasi & Deploy Database Cloud Supabase 🛠️</span>
+                <span className="transition-transform group-open:rotate-180">▼</span>
+              </summary>
+              
+              <div className="space-y-3 text-[10.5px] mt-3 pt-3 border-t border-slate-50">
+                <p className="font-semibold text-slate-800">Langkah Membuat Tabel di Supabase:</p>
+                <ol className="list-decimal pl-4 space-y-1.5 text-slate-500 font-light leading-relaxed">
+                  <li>Buka <strong>dashboard Supabase Anda</strong>.</li>
+                  <li>Masuk ke menu <strong>SQL Editor</strong> di panel bilah navigasi kiri.</li>
+                  <li>Salin seluruh kode dari file <code className="bg-slate-100 px-1 py-0.5 rounded text-pink-500 font-mono text-[9px]">supabase_schema.sql</code> di folder root proyek ini.</li>
+                  <li>Tempel (paste) ke <strong>SQL Editor Supabase</strong> Anda.</li>
+                  <li>Klik tombol <strong>Run</strong> di kanan bawah untuk membuat tabel sekaligus menyiapkan data awal (admin seed).</li>
+                </ol>
+                
+                <div className="pt-2 border-t border-slate-100">
+                  <p className="text-[10px] text-slate-400 mb-2">Setelah Anda menjalankan SQL di Supabase, Anda bisa langsung menekan tombol berikut untuk melakukan pengisian data awal jastip:</p>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={checkDiagnostics}
+                      disabled={seedingLoading}
+                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[9px] rounded-lg cursor-pointer transition-all"
+                    >
+                      BACA ULANG STATUS 🔄
+                    </button>
+                    <button
+                      disabled={seedingLoading}
+                      onClick={handleManualSeed}
+                      className="flex-1 py-2 bg-pink-400 hover:bg-pink-500 text-white font-bold uppercase tracking-wider text-[9px] rounded-lg cursor-pointer transition-all disabled:opacity-50"
+                    >
+                      {seedingLoading ? "SEDANG MENGISI..." : "ISI DUA DETIK (SEED CLOUD DATABASE) ✨"}
+                    </button>
+                  </div>
+                </div>
+                {seedingText && (
+                  <p className="text-[10px] text-center text-pink-500 font-semibold mt-1 animate-pulse">{seedingText}</p>
+                )}
+              </div>
+            </details>
+          </div>
         </div>
       )}
     </div>
