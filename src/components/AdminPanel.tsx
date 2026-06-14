@@ -1207,7 +1207,7 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
                   id="wa-tpl-1"
                   type="button"
                   onClick={() => {
-                    let text = `Halo Kak ${waModalOrder.customer_name}! Terima kasih telah melakukan Pre-Order di Jastip byDSI Sourcing Hub 💖. Pesanan Tumbler "${waModalOrder.product}" (Jumlah: ${waModalOrder.quantity} pcs) dengan rincian total Rp ${waModalOrder.total_price.toLocaleString('id-ID')} saat ini berstatus: MENUNGGU PEMBAYARAN.\n\nSilakan lakukan transfer ke rekening resmi kami berikut:\n\n🏦 BANK BCA\n🔢 Rek: 8820129481\n👤 A/n: Jastip byDSI (Devina Sofia)\n\nSetelah melakukan pembayaran, kakak bisa langsung mengunggah bukti snapshot transfer di web kami secara instan untuk verifikasi prioritas!\nKode Referensi: ${waModalOrder.order_code}`;
+                    let text = `Halo Kak ${waModalOrder.customer_name}! Terima kasih telah melakukan Pre-Order di Jastip byDSI Sourcing Hub 💖. Pesanan Tumbler "${waModalOrder.product}" (Jumlah: ${waModalOrder.quantity} pcs) dengan rincian total Rp ${waModalOrder.total_price.toLocaleString('id-ID')} saat ini berstatus: MENUNGGU PEMBAYARAN.\n\nSilakan lakukan transfer ke rekening resmi kami berikut:\n\n🏦 BANK BCA\n🔢 Rek: 3221064061\n👤 A/n: Dony Dwi Ristanto\n\nSetelah melakukan pembayaran, kakak bisa langsung mengunggah bukti snapshot transfer di web kami secara instan untuk verifikasi prioritas!\nKode Referensi: ${waModalOrder.order_code}`;
                     window.open(`https://api.whatsapp.com/send?phone=${waModalOrder.whatsapp.replace(/\D/g, '')}&text=${encodeURIComponent(text)}`, '_blank');
                   }}
                   className="w-full border border-slate-100 bg-slate-50/50 hover:border-emerald-200 hover:bg-emerald-50/20 p-4 rounded-2xl transition-all cursor-pointer text-left space-y-1 block hover:-translate-y-0.5 duration-200"
@@ -1305,7 +1305,7 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
                   <h4 className="text-sm font-extrabold text-slate-850 tracking-wider">★ JASTIP byDSI ★</h4>
                   <p className="text-[10px] text-slate-400 font-light leading-none">PREMIUM SOURCING CONCIERGE</p>
                   <p className="text-[9px] text-slate-400 uppercase">Munich Hub (DE) • Jakarta Sorting (ID)</p>
-                  <p className="text-[9px] text-slate-405 italic">WhatsApp: +62 822-1111-2222 (byDSI Support)</p>
+                  <p className="text-[9px] text-slate-405 italic">WhatsApp: +62 856-4905-9650 (byDSI Support)</p>
                 </div>
 
                 <div className="w-full border-t border-dashed border-slate-300 my-2"></div>

@@ -95,7 +95,7 @@ export default function OrderForm({ selectedProduct, onBackToCatalog, onSetTrack
   if (createdOrder) {
     const formattedPrice = createdOrder.total_price.toLocaleString('id-ID');
     const waText = encodeURIComponent(
-      `Halo Admin Jastip byDSI! 🌸\n\nBerikut adalah data konfirmasi pesanan Pre-Order saya:\n\n📋 *DETAIL PESANAN PREMIUM*\n──────────────────────\n• *Kode Pesanan :* ${createdOrder.order_code}\n• *Nama Lengkap :* ${createdOrder.customer_name}\n• *No. WhatsApp :* ${createdOrder.whatsapp}\n• *Produk        :* ${createdOrder.product}\n• *Jumlah        :* ${createdOrder.quantity} pcs\n• *Total Tagihan :* Rp ${formattedPrice}\n──────────────────────\n\n✨ *Catatan Khusus:* \n${createdOrder.notes ? createdOrder.notes : '- Tidak ada.'}\n\nSaya akan segera melampirkan screenshot bukti transfer transaksi ini ke Bank BCA atas nama Jastip byDSI. Mohon bantuan Kakak untuk melakukan verifikasi. Terima kasih banyak! 💕`
+      `Halo Admin Jastip byDSI! 🌸\n\nBerikut adalah data konfirmasi pesanan Pre-Order saya:\n\n📋 *DETAIL PESANAN PREMIUM*\n──────────────────────\n• *Kode Pesanan :* ${createdOrder.order_code}\n• *Nama Lengkap :* ${createdOrder.customer_name}\n• *No. WhatsApp :* ${createdOrder.whatsapp}\n• *Produk        :* ${createdOrder.product}\n• *Jumlah        :* ${createdOrder.quantity} pcs\n• *Total Tagihan :* Rp ${formattedPrice}\n──────────────────────\n\n✨ *Catatan Khusus:* \n${createdOrder.notes ? createdOrder.notes : '- Tidak ada.'}\n\nSaya akan segera melampirkan screenshot bukti transfer transaksi ini ke Bank BCA atas nama Dony Dwi Ristanto. Mohon bantuan Kakak untuk melakukan verifikasi. Terima kasih banyak! 💕`
     );
     const whatsappLink = `https://wa.me/6285649059650?text=${waText}`;
 
@@ -164,8 +164,8 @@ export default function OrderForm({ selectedProduct, onBackToCatalog, onSetTrack
             </p>
             <div className="font-mono text-xs bg-white border border-slate-100 rounded-xl p-4 text-slate-600 space-y-1.5 mb-4 shadow-sm">
               <p><strong>Nama Bank:</strong> Bank Central Asia (BCA)</p>
-              <p><strong>Nomor Rekening:</strong> <span className="font-bold text-slate-700">8820129481</span></p>
-              <p><strong>Atas Nama:</strong> Jastip byDSI (Devina Sofia)</p>
+              <p><strong>Nomor Rekening:</strong> <span className="font-bold text-slate-700">3221064061</span></p>
+              <p><strong>Atas Nama:</strong> Dony Dwi Ristanto</p>
             </div>
             <p className="text-[11px] font-light text-slate-400 leading-normal">
               Setelah Anda selesai melakukan transfer bank, ambil tangkapan layar (screenshot) bukti transfer Anda lalu klik tombol di bawah ini untuk mengirimkan konfirmasi langsung melalui WhatsApp kami.

@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { 
   Search, MapPin, Calendar, Clock, DollarSign, Package, CheckCircle, 
   CreditCard, ShoppingBag, Truck, CheckCheck, Copy, Share2, UploadCloud, FileText, Check, ExternalLink,
-  Receipt, Printer
+  Receipt, Printer, MessageSquare
 } from 'lucide-react';
 import { TrackingStatus, statusLabels, categoryLabels } from '../types';
 
@@ -485,19 +485,19 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
                 <div className="font-mono bg-slate-50 border border-slate-100 rounded-xl p-4 text-slate-700 text-xs space-y-1.5">
                   <p className="text-[10px] font-bold text-slate-400 tracking-wider font-sans">DETAIL REKENING BCA</p>
                   <p><strong>Nama Bank:</strong> Bank Central Asia (BCA)</p>
-                  <p><strong>Nomor Rekening:</strong> 8820129481</p>
-                  <p><strong>Atas Nama:</strong> Jastip byDSI (Devina Sofia)</p>
+                  <p><strong>Nomor Rekening:</strong> 3221064061</p>
+                  <p><strong>Atas Nama:</strong> Dony Dwi Ristanto</p>
                   <p><strong>Jumlah:</strong> <span className="font-semibold text-rose-500 bg-rose-50/50 px-1 rounded">Rp {orderData.order.total_price.toLocaleString('id-ID')}</span></p>
                 </div>
 
                 {/* Upload Section */}
                 <div className="flex flex-col justify-center">
                   {orderData.order.payment_receipt ? (
-                    <div className="bg-emerald-50/30 border border-emerald-100 rounded-xl p-4 text-center">
+                    <div className="bg-emerald-50/30 border border-emerald-100 rounded-xl p-4 text-center space-y-2.5">
                       <div className="flex items-center justify-center gap-1.5 text-emerald-600 font-semibold text-xs mb-1">
                         <CheckCircle className="w-4 h-4" /> BUKTI TRANSFER TERUNGGAH
                       </div>
-                      <p className="text-[10px] text-slate-500 font-light mb-3">
+                      <p className="text-[10px] text-slate-500 font-light">
                          Snapshot bukti transfer Anda terarsip aman. Tim byDSI Sourcing Hub sedang memverifikasi transaksi.
                       </p>
                       
@@ -512,6 +512,19 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                           <a href={orderData.order.payment_receipt} target="_blank" rel="noopener noreferrer" className="text-[10px] text-white font-semibold underline">Detail</a>
                         </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <a
+                          href={`https://wa.me/6285649059650?text=${encodeURIComponent(
+                            `Halo Admin Jastip byDSI! 🌸\n\nSaya telah mengunggah bukti transfer pembayaran di website untuk pesanan saya:\n\n📋 *DETAIL PESANAN PREMIUM*\n──────────────────────\n• *Kode Pesanan :* ${orderData.order.order_code}\n• *Nama Lengkap :* ${orderData.order.customer_name}\n• *Produk        :* ${orderData.order.product}\n• *Jumlah        :* ${orderData.order.quantity} pcs\n• *Total Tagihan :* Rp ${orderData.order.total_price.toLocaleString('id-ID')}\n──────────────────────\n\nBukti transfer sudah sukses terupload di sistem tracking website. Mohon bantuan Kakak untuk melakukan verifikasi status pesanan saya. Terima kasih banyak! 💕`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer shadow-3xs hover:shadow-2xs active:scale-95"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 animate-pulse" /> Kirim Bukti ke WhatsApp
+                        </a>
                       </div>
                     </div>
                   ) : (
@@ -547,7 +560,7 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
                         </label>
                       </div>
 
-                      {receiptFile && (
+                      {receiptFile ? (
                         <div className="flex gap-2">
                           <button
                             id="cancel-receipt-btn"
@@ -567,6 +580,25 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
                             {uploadingReceipt ? 'Sedang Mengirim...' : <><Check className="w-3.5 h-3.5" /> Kirim Bukti</>}
                           </button>
                         </div>
+                      ) : (
+                        <>
+                          <div className="relative flex py-0.5 items-center">
+                            <div className="flex-grow border-t border-slate-100"></div>
+                            <span className="flex-shrink mx-2.5 text-slate-400 font-mono text-[9px] uppercase tracking-wider">Atau</span>
+                            <div className="flex-grow border-t border-slate-100"></div>
+                          </div>
+
+                          <a
+                            href={`https://wa.me/6285649059650?text=${encodeURIComponent(
+                              `Halo Admin Jastip byDSI! 🌸\n\nSaya ingin mengonfirmasi pembayaran untuk pesanan pre-order saya:\n\n📋 *DETAIL PESANAN PREMIUM*\n──────────────────────\n• *Kode Pesanan :* ${orderData.order.order_code}\n• *Nama Lengkap :* ${orderData.order.customer_name}\n• *Produk        :* ${orderData.order.product}\n• *Jumlah        :* ${orderData.order.quantity} pcs\n• *Total Tagihan :* Rp ${orderData.order.total_price.toLocaleString('id-ID')}\n──────────────────────\n\nSaya akan segera melampirkan screenshot bukti transfer transaksi ini ke Bank BCA a/n Dony Dwi Ristanto langsung melalui WhatsApp ini. Terima kasih! 💕`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer shadow-3xs hover:shadow-2xs active:scale-95"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" /> Konfirmasi via WhatsApp
+                          </a>
+                        </>
                       )}
                     </div>
                   )}
@@ -622,7 +654,7 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
                   <h4 className="text-sm font-extrabold text-slate-850 tracking-wider">★ JASTIP byDSI ★</h4>
                   <p className="text-[10px] text-slate-400 font-light leading-none">PREMIUM SOURCING CONCIERGE</p>
                   <p className="text-[9px] text-slate-400 uppercase">Munich Hub (DE) • Jakarta Sorting (ID)</p>
-                  <p className="text-[9px] text-slate-405 italic">WhatsApp: +62 822-1111-2222 (byDSI Support)</p>
+                  <p className="text-[9px] text-slate-405 italic">WhatsApp: +62 856-4905-9650 (byDSI Support)</p>
                 </div>
 
                 <div className="w-full border-t border-dashed border-slate-300 my-2"></div>
