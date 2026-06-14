@@ -89,19 +89,57 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  const compressImage = (base64Str: string, callback: (compressed: string) => void) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      const max_size = 1000; // 1000px is clear, easily readable, and lightweight
+      if (width > height) {
+        if (width > max_size) {
+          height *= max_size / width;
+          width = max_size;
+        }
+      } else {
+        if (height > max_size) {
+          width *= max_size / height;
+          height = max_size;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        // Compress as JPEG to quality 0.70 (very sharp, but extreme file size savings)
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.70);
+        callback(compressedDataUrl);
+      } else {
+        callback(base64Str);
+      }
+    };
+    img.onerror = () => {
+      callback(base64Str);
+    };
+  };
+
   const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // File size safety check (max 5MB to avoid SQLite size blowing up)
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Ukuran berkas Anda terlalu besar. Maksimum ukuran berkas adalah 5MB.");
+    // Check original size warning (will be compressed anyway)
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Ukuran berkas Anda terlalu besar untuk diproses. Silakan pilih file di bawah 10MB.");
       return;
     }
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setReceiptFile(reader.result as string);
+      compressImage(reader.result as string, (compressed) => {
+        setReceiptFile(compressed);
+      });
     };
     reader.readAsDataURL(file);
   };
@@ -126,14 +164,16 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Ukuran berkas Anda terlalu besar. Maksimum ukuran berkas adalah 5MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Ukuran berkas Anda terlalu besar untuk diproses. Silakan pilih file di bawah 10MB.");
       return;
     }
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setReceiptFile(reader.result as string);
+      compressImage(reader.result as string, (compressed) => {
+        setReceiptFile(compressed);
+      });
     };
     reader.readAsDataURL(file);
   };
