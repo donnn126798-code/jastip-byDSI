@@ -36,6 +36,7 @@ export function hashPassword(password: string): string {
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
 
+export const hasSupabaseConfig = !!(supabaseUrl && supabaseKey);
 export let isSupabaseEnabled = false;
 let supabase: any = null;
 
@@ -855,144 +856,157 @@ export async function deleteTestimonial(id: string): Promise<boolean> {
 export async function autoSeedSupabase() {
   console.log('[DSI Database] Menguji apakah database cloud memerlukan seeding otomatis... 🚀');
   
+  // If we have configurations, temporarily assume enabled to perform active verification query
+  if (hasSupabaseConfig && supabase) {
+    isSupabaseEnabled = true;
+  }
+
   // 1. Seed Supabase if active & empty
   if (isSupabaseEnabled && supabase) {
     try {
       console.log('[DSI Database] Mengecek status seed di Supabase...');
       
-      // Seed admins if empty
-      const { data: adminSnap } = await supabase.from('admins').select('id').limit(1);
-      if (!adminSnap || adminSnap.length === 0) {
-        console.log('[DSI Database] Melakukan seed data admin awal di Supabase...');
-        await supabase.from('admins').insert([
-          { id: 'admin-dony', username: 'Dony', password_hash: hashPassword('JastipDesiRistanti123') },
-          { id: 'admin-desi', username: 'Desi', password_hash: hashPassword('JastipDesiRistanti123') },
-          { id: 'admin-rori', username: 'Rori', password_hash: hashPassword('JastipDesiRistanti123') }
-        ]);
-      }
+      // Seed admins if empty, checking if relation/table exists
+      const { data: adminSnap, error: adminErr } = await supabase.from('admins').select('id').limit(1);
+      if (adminErr) {
+        console.warn('[DSI Database] Supabase connection failed or tables do not exist. Bypassing Supabase and falling back to Firebase Firestore:', adminErr.message || adminErr);
+        isSupabaseEnabled = false;
+        // Skip Supabase seeding since tables aren't deployed
+      } else {
+        if (!adminSnap || adminSnap.length === 0) {
+          console.log('[DSI Database] Melakukan seed data admin awal di Supabase...');
+          await supabase.from('admins').insert([
+            { id: 'admin-dony', username: 'Dony', password_hash: hashPassword('JastipDesiRistanti123') },
+            { id: 'admin-desi', username: 'Desi', password_hash: hashPassword('JastipDesiRistanti123') },
+            { id: 'admin-rori', username: 'Rori', password_hash: hashPassword('JastipDesiRistanti123') }
+          ]);
+        }
 
-      // Seed products if empty
-      const { data: productSnap } = await supabase.from('products').select('id').limit(1);
-      if (!productSnap || productSnap.length === 0) {
-        console.log('[DSI Database] Melakukan seed data katalog jastip awal di Supabase...');
-        const seedProducts = [
-          {
-            id: 'prod-001',
-            name: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
-            category: 'Stanley',
-            description: 'The iconic Stanley Quencher in a stunning, bright pastel matte pink finish. Your perfect companion for premium all-day hydration. Comes with the modern FlowState™ 3-way lid.',
-            price: 1150000,
-            stock: 12,
-            image: '/pastel_pink_tumbler.png'
-          },
-          {
-            id: 'prod-002',
-            name: 'Stanley Quencher H2.0 (40oz) - Limited Edition Floral Watercolor',
-            category: 'Limited Edition',
-            description: 'An elegant limited-edition Stanley tumbler adorned with exquisite blush pink watercolor florals. Features an insulated double-wall vacuum stainless steel design. Intricately numbered.',
-            price: 1450000,
-            stock: 4,
-            image: '/floral_watercolor_tumbler.png'
-          },
-          {
-            id: 'prod-003',
-            name: 'Sakura Blossom Curated Gift Set Box',
-            category: 'Gift Set',
-            description: 'A beautifully-curated luxury boutique gift box. Includes a pastel pink tumbler, custom satin sleeping mask, vanilla orchid lavender aromatherapy candle, and a gold-stamped greeting card.',
-            price: 1950000,
-            stock: 6,
-            image: '/sakura_gift_box.png'
-          },
-          {
-            id: 'prod-004',
-            name: 'Handcrafted Blush Pink Leather Crossbody Strap',
-            category: 'Tumbler Accessories',
-            description: 'Carry your luxury tumbler in ultimate hands-free style. Lovingly hand-cut from premium full-grain Italian leather in a soft rose blush color, featuring beautiful, heavy brass clips.',
-            price: 380000,
-            stock: 20,
-            image: '/pink_leather_strap.png'
-          },
-          {
-            id: 'prod-005',
-            name: 'Stanley IceFlow Flip Straw Tumbler (30oz) - Soft Rose',
-            category: 'Stanley',
-            description: 'Designed for on-the-go luxury life. This beautiful soft rose tumbler features leakproof flip straw technology and an integrated folding carrying handle.',
-            price: 1050000,
-            stock: 8,
-            image: '/soft_rose_tumbler.png'
-          },
-          {
-            id: 'prod-006',
-            name: 'Rose Gold Metallic Stanley Accessory Charm Set',
-            category: 'Tumbler Accessories',
-            description: 'Dazzle up your Stanley Quencher. Premium metallic rose-gold personalized name tag and matching silicon straw cover shaped like a beautiful pink cherry blossom blossom.',
-            price: 180005,
-            stock: 15,
-            image: '/rose_gold_charms.png'
-          }
-        ];
-        await supabase.from('products').insert(seedProducts);
-      }
+        // Seed products if empty
+        const { data: productSnap } = await supabase.from('products').select('id').limit(1);
+        if (!productSnap || productSnap.length === 0) {
+          console.log('[DSI Database] Melakukan seed data katalog jastip awal di Supabase...');
+          const seedProducts = [
+            {
+              id: 'prod-001',
+              name: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
+              category: 'Stanley',
+              description: 'The iconic Stanley Quencher in a stunning, bright pastel matte pink finish. Your perfect companion for premium all-day hydration. Comes with the modern FlowState™ 3-way lid.',
+              price: 1150000,
+              stock: 12,
+              image: '/pastel_pink_tumbler.png'
+            },
+            {
+              id: 'prod-002',
+              name: 'Stanley Quencher H2.0 (40oz) - Limited Edition Floral Watercolor',
+              category: 'Limited Edition',
+              description: 'An elegant limited-edition Stanley tumbler adorned with exquisite blush pink watercolor florals. Features an insulated double-wall vacuum stainless steel design. Intricately numbered.',
+              price: 1450000,
+              stock: 4,
+              image: '/floral_watercolor_tumbler.png'
+            },
+            {
+              id: 'prod-003',
+              name: 'Sakura Blossom Curated Gift Set Box',
+              category: 'Gift Set',
+              description: 'A beautifully-curated luxury boutique gift box. Includes a pastel pink tumbler, custom satin sleeping mask, vanilla orchid lavender aromatherapy candle, and a gold-stamped greeting card.',
+              price: 1950000,
+              stock: 6,
+              image: '/sakura_gift_box.png'
+            },
+            {
+              id: 'prod-004',
+              name: 'Handcrafted Blush Pink Leather Crossbody Strap',
+              category: 'Tumbler Accessories',
+              description: 'Carry your luxury tumbler in ultimate hands-free style. Lovingly hand-cut from premium full-grain Italian leather in a soft rose blush color, featuring beautiful, heavy brass clips.',
+              price: 380000,
+              stock: 20,
+              image: '/pink_leather_strap.png'
+            },
+            {
+              id: 'prod-005',
+              name: 'Stanley IceFlow Flip Straw Tumbler (30oz) - Soft Rose',
+              category: 'Stanley',
+              description: 'Designed for on-the-go luxury life. This beautiful soft rose tumbler features leakproof flip straw technology and an integrated folding carrying handle.',
+              price: 1050000,
+              stock: 8,
+              image: '/soft_rose_tumbler.png'
+            },
+            {
+              id: 'prod-006',
+              name: 'Rose Gold Metallic Stanley Accessory Charm Set',
+              category: 'Tumbler Accessories',
+              description: 'Dazzle up your Stanley Quencher. Premium metallic rose-gold personalized name tag and matching silicon straw cover shaped like a beautiful pink cherry blossom blossom.',
+              price: 180005,
+              stock: 15,
+              image: '/rose_gold_charms.png'
+            }
+          ];
+          await supabase.from('products').insert(seedProducts);
+        }
 
-      // Seed testimonials if empty
-      const { data: testiSnap } = await supabase.from('testimonials').select('id').limit(1);
-      if (!testiSnap || testiSnap.length === 0) {
-        console.log('[DSI Database] Melakukan seed data testimoni awal di Supabase...');
-        const seedTestimonials = [
-          {
-            id: 'testi-001',
-            customer_name: 'Anindya Kirana',
-            review: 'My pink Stanley arrived in perfect condition! The packaging was so beautiful, like unboxing a luxury designer piece. Truly reliable personal shopping service. Custom notes were handwritten too!',
-            rating: 5,
-            image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'
-          },
-          {
-            id: 'testi-002',
-            customer_name: 'Sherly Septiani',
-            review: 'Very fast and responsive! Best Jastip service I have ever tried. Always get the rarest limited edition Stanley colors that other shoppers cannot secure. 10/10 recommended for active tumbler lovers!',
-            rating: 5,
-            image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150'
-          },
-          {
-            id: 'testi-003',
-            customer_name: 'Nadia Salsabila',
-            review: 'The Sakura Blossom Gift Set was the absolute perfect bridal shower gift for my best friend. The satin-lined box was stunningly luxurious. Jastip byDSI provides exceptional high-society aesthetic!',
-            rating: 5,
-            image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150'
-          }
-        ];
-        await supabase.from('testimonials').insert(seedTestimonials);
-      }
+        // Seed testimonials if empty
+        const { data: testiSnap } = await supabase.from('testimonials').select('id').limit(1);
+        if (!testiSnap || testiSnap.length === 0) {
+          console.log('[DSI Database] Melakukan seed data testimoni awal di Supabase...');
+          const seedTestimonials = [
+            {
+              id: 'testi-001',
+              customer_name: 'Anindya Kirana',
+              review: 'My pink Stanley arrived in perfect condition! The packaging was so beautiful, like unboxing a luxury designer piece. Truly reliable personal shopping service. Custom notes were handwritten too!',
+              rating: 5,
+              image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'
+            },
+            {
+              id: 'testi-002',
+              customer_name: 'Sherly Septiani',
+              review: 'Very fast and responsive! Best Jastip service I have ever tried. Always get the rarest limited edition Stanley colors that other shoppers cannot secure. 10/10 recommended for active tumbler lovers!',
+              rating: 5,
+              image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150'
+            },
+            {
+              id: 'testi-003',
+              customer_name: 'Nadia Salsabila',
+              review: 'The Sakura Blossom Gift Set was the absolute perfect bridal shower gift for my best friend. The satin-lined box was stunningly luxurious. Jastip byDSI provides exceptional high-society aesthetic!',
+              rating: 5,
+              image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150'
+            }
+          ];
+          await supabase.from('testimonials').insert(seedTestimonials);
+        }
 
-      // Seed initial order if empty
-      const { data: orderSnap } = await supabase.from('orders').select('id').limit(1);
-      if (!orderSnap || orderSnap.length === 0) {
-        console.log('[DSI Database] Melakukan seed data pesanan awal di Supabase...');
-        const orderId = 'order-initial-01';
-        const initialOrder = {
-          id: orderId,
-          order_code: 'BYDSI-0001',
-          customer_name: 'Clarissa Putri',
-          whatsapp: '6281234567890',
-          product: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
-          quantity: 1,
-          notes: 'Please wrap safely as a birthday surprise!',
-          total_price: 1150000,
-          status: 'In Transit',
-          created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1050).toISOString()
-        };
-        await supabase.from('orders').insert(initialOrder);
+        // Seed initial order if empty
+        const { data: orderSnap } = await supabase.from('orders').select('id').limit(1);
+        if (!orderSnap || orderSnap.length === 0) {
+          console.log('[DSI Database] Melakukan seed data pesanan awal di Supabase...');
+          const orderId = 'order-initial-01';
+          const initialOrder = {
+            id: orderId,
+            order_code: 'BYDSI-0001',
+            customer_name: 'Clarissa Putri',
+            whatsapp: '6281234567890',
+            product: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
+            quantity: 1,
+            notes: 'Please wrap safely as a birthday surprise!',
+            total_price: 1150000,
+            status: 'In Transit',
+            created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1050).toISOString()
+          };
+          await supabase.from('orders').insert(initialOrder);
 
-        const trackingHistory = [
-          { id: 'track-01', order_id: orderId, status: 'Waiting for Payment', updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1050).toISOString() },
-          { id: 'track-02', order_id: orderId, status: 'Paid', updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1050 - 4 * 60 * 60 * 1050).toISOString() },
-          { id: 'track-03', order_id: orderId, status: 'Ordered', updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1050).toISOString() },
-          { id: 'track-04', order_id: orderId, status: 'In Transit', updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1050).toISOString() }
-        ];
-        await supabase.from('tracking_history').insert(trackingHistory);
+          const trackingHistory = [
+            { id: 'track-01', order_id: orderId, status: 'Waiting for Payment', updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1050).toISOString() },
+            { id: 'track-02', order_id: orderId, status: 'Paid', updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1050 - 4 * 60 * 60 * 1050).toISOString() },
+            { id: 'track-03', order_id: orderId, status: 'Ordered', updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1050).toISOString() },
+            { id: 'track-04', order_id: orderId, status: 'In Transit', updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1050).toISOString() }
+          ];
+          await supabase.from('tracking_history').insert(trackingHistory);
+        }
+        
+        if (isSupabaseEnabled) {
+          console.log('[DSI Database] Proses seeding Supabase selesai dengan aman! 🎆');
+        }
       }
-      
-      console.log('[DSI Database] Proses seeding Supabase selesai dengan aman! 🎆');
     } catch (err: any) {
       console.error('[DSI Database] Seeding Supabase gagal:', err.message || err);
     }
@@ -1170,16 +1184,21 @@ export async function getDbDiagnostics() {
     catalogCount: 0
   };
 
-  if (isSupabaseEnabled && supabase) {
+  const hasConfig = !!(supabaseUrl && supabaseKey && supabase);
+  if (hasConfig) {
     try {
-      const { data, error } = await supabase.from('products').select('id');
+      const { data, error } = await supabase.from('products').select('id').limit(1);
       if (error) throw error;
       result.supabaseConnectionStatus = 'connected_and_healthy';
       result.catalogCount = data ? data.length : 0;
+      isSupabaseEnabled = true; // Auto self-heal: enable Supabase if tables / connection restored!
     } catch (err: any) {
       result.supabaseConnectionStatus = 'error';
       result.supabaseError = err?.message || String(err);
+      isSupabaseEnabled = false; // Auto fallback: disable if check query fails
     }
+    // Update the returned state to reflect verified health
+    result.isSupabaseEnabled = isSupabaseEnabled;
   } else if (db) {
     try {
       const snap = await getDocs(collection(db, 'products'));

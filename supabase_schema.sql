@@ -81,3 +81,18 @@ VALUES
   ('testi-002', 'Sherly Septiani', 'Very fast and responsive! Best Jastip service I have ever tried. Always get the rarest limited edition Stanley colors that other shoppers cannot secure. 10/10 recommended for active tumbler lovers!', 5, 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150'),
   ('testi-003', 'Nadia Salsabila', 'The Sakura Blossom Gift Set was the absolute perfect bridal shower gift for my best friend. The satin-lined box was stunningly luxurious. Jastip byDSI provides exceptional high-society aesthetic!', 5, 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150')
 ON CONFLICT (id) DO NOTHING;
+
+-- 9. Memasukkan Pesanan Simulasi Awal (Opsional - Jika belum ada)
+INSERT INTO orders (id, order_code, customer_name, whatsapp, product, quantity, notes, total_price, status, created_at, payment_receipt, resi_number, admin_notes)
+VALUES
+  ('order-initial-01', 'BYDSI-0001', 'Clarissa Putri', '6281234567890', 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink', 1, 'Please wrap safely as a birthday surprise!', 1150000, 'In Transit', '2026-06-11T12:00:00.000Z', NULL, 'RESI-DSI-8891', 'Sudah dibungkus kado premium pink')
+ON CONFLICT (id) DO NOTHING;
+
+-- 10. Memasukkan Riwayat Pelacakan Pesanan Awal (Opsional - Jika belum ada)
+INSERT INTO tracking_history (id, order_id, status, updated_at)
+VALUES
+  ('track-01', 'order-initial-01', 'Waiting for Payment', '2026-06-11T12:00:00.000Z'),
+  ('track-02', 'order-initial-01', 'Paid', '2026-06-11T15:30:00.000Z'),
+  ('track-03', 'order-initial-01', 'Ordered', '2026-06-12T09:00:00.000Z'),
+  ('track-04', 'order-initial-01', 'In Transit', '2026-06-13T10:15:00.000Z')
+ON CONFLICT (id) DO NOTHING;
