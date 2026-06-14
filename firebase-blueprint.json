@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "Admin": {
+      "title": "Admin",
+      "description": "Admin access credentials and keys",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "username": { "type": "string", "description": "Admin username" },
+        "password_hash": { "type": "string", "description": "Secure password hash" }
+      },
+      "required": ["id", "username", "password_hash"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Item displayed in the personal shopper curation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "name": { "type": "string", "description": "Name of the curated item" },
+        "category": { "type": "string", "description": "Category group" },
+        "description": { "type": "string", "description": "Detailed item description" },
+        "price": { "type": "number", "description": "Price in IDR rupiah" },
+        "stock": { "type": "integer", "description": "Available pieces remaining" },
+        "image": { "type": "string", "description": "URL or local asset pathname for the cover image" }
+      },
+      "required": ["id", "name", "category", "price", "stock", "image"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Jastip pre-order purchase reservation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique order identifier" },
+        "order_code": { "type": "string", "description": "Human-readable invoice code (e.g., BYDSI-0001)" },
+        "customer_name": { "type": "string", "description": "Name of the customer placing the order" },
+        "whatsapp": { "type": "string", "description": "WhatsApp contact phone number" },
+        "product": { "type": "string", "description": "Name of the product pre-ordered" },
+        "quantity": { "type": "integer", "description": "Amount requested" },
+        "notes": { "type": "string", "description": "Special request details" },
+        "total_price": { "type": "number", "description": "Total payment in IDR" },
+        "status": { "type": "string", "description": "Current state of fulfillment" },
+        "created_at": { "type": "string", "description": "Timestamp ISO string when created" },
+        "payment_receipt": { "type": "string", "description": "Optional payment confirmation receipt image URL" },
+        "resi_number": { "type": "string", "description": "Optional shipment tracking receipt code" },
+        "admin_notes": { "type": "string", "description": "Internal shopkeeper notes" }
+      },
+      "required": ["id", "order_code", "customer_name", "whatsapp", "product", "quantity", "total_price", "status", "created_at"]
+    },
+    "TrackingHistory": {
+      "title": "TrackingHistory",
+      "description": "Timeline entries detailing delivery status changes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "order_id": { "type": "string", "description": "Reference ID of the active order" },
+        "status": { "type": "string", "description": "Status name text" },
+        "updated_at": { "type": "string", "description": "Timestamp ISO string when updated" }
+      },
+      "required": ["id", "order_id", "status", "updated_at"]
+    },
+    "Testimonial": {
+      "title": "Testimonial",
+      "description": "Social proof reviews from high-society buyers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "customer_name": { "type": "string", "description": "Testimonial reviewer name" },
+        "review": { "type": "string", "description": "Text body of the review" },
+        "rating": { "type": "integer", "description": "Pristine star count (1-5)" },
+        "image": { "type": "string", "description": "Avatar placeholder or portrait URL" }
+      },
+      "required": ["id", "customer_name", "review", "rating", "image"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Store shop managers who can edit catalogs and confirm payments"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Available curated luxury products"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Reservations placed by visitors"
+    },
+    "/tracking_history/{trackId}": {
+      "schema": "TrackingHistory",
+      "description": "Status updates timeline for order progress tracking"
+    },
+    "/testimonials/{testiId}": {
+      "schema": "Testimonial",
+      "description": "Exquisite customer reviews"
+    }
+  }
+}
