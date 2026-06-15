@@ -5,6 +5,7 @@ User-agent: *
 
 # Allowed Public Sections
 Allow: /
+Allow: /google9afe5abc9c4d279b.html
 Allow: /?tab=home
 Allow: /?tab=products
 Allow: /?tab=testimonials
