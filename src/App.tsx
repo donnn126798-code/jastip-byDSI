@@ -46,10 +46,25 @@ export default function App() {
       .catch((e) => console.warn('Failed to fetch API database status:', e));
   }, []);
 
-  // Auto Scroll to Top on Tab switch to preserve elegant layout feel
+  // Auto Scroll to Top on Tab switch & protect sensitive states from crawlers
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setMobileMenuOpen(false);
+
+    // Dynamic SEO crawl control target
+    let robotsMeta = document.querySelector('meta[name="robots"]');
+    if (!robotsMeta) {
+      robotsMeta = document.createElement('meta');
+      robotsMeta.setAttribute('name', 'robots');
+      document.head.appendChild(robotsMeta);
+    }
+    
+    // Protect admin panel, track state, and checkout tabs from search engines
+    if (activeTab === 'admin' || activeTab === 'checkout' || activeTab === 'track') {
+      robotsMeta.setAttribute('content', 'noindex, nofollow');
+    } else {
+      robotsMeta.setAttribute('content', 'index, follow');
+    }
   }, [activeTab]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {

@@ -1,0 +1,35 @@
+# robots.txt for Jastip byDSI
+# Permitted crawlers can reach general catalog and home views, to protect admin panels and client-specific order information.
+
+User-agent: *
+
+# Allowed Public Sections
+Allow: /
+Allow: /?tab=home
+Allow: /?tab=products
+Allow: /?tab=testimonials
+Allow: /?tab=contact
+Allow: /flora_watercolor_tumbler.png
+Allow: /hero_pink_tumbler.png
+Allow: /pastel_pink_tumbler.png
+Allow: /pink_leather_strap.png
+Allow: /rose_gold_charms.png
+Allow: /sakura_gift_box.png
+Allow: /soft_rose_tumbler.png
+
+# Disallowed Private Pages / Tab-states
+Disallow: /admin
+Disallow: /?tab=admin
+Disallow: /?tab=checkout
+Disallow: /?tab=track
+
+# Disallowed Sensitive Database APIs & Diagnostics Endpoints
+Disallow: /api/
+Disallow: /api/db-seed
+Disallow: /api/db-diagnostics
+Disallow: /api/stats
+Disallow: /api/admin/
+Disallow: /api/orders/
+
+# Sitemap location to simplify indexation
+Sitemap: https://jastip-by-dsi.vercel.app/sitemap.xml
