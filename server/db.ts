@@ -738,6 +738,42 @@ export async function updateOrderPaymentReceipt(id: string, payment_receipt: str
   throw new Error('No live cloud database client is configured to update payment receipt');
 }
 
+export async function deleteOrder(id: string): Promise<boolean> {
+  // Try Supabase first if active
+  if (isSupabaseEnabled && supabase) {
+    try {
+      // Also delete related tracking history
+      await supabase.from('tracking_history').delete().eq('order_id', id);
+      const { error } = await supabase.from('orders').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('[DSI Database - Supabase] deleteOrder error:', err);
+      return false;
+    }
+  }
+
+  // Fallback to Firebase Firestore
+  if (db) {
+    try {
+      // Also delete related tracking history if exists
+      const q = query(collection(db, 'tracking_history'), where('order_id', '==', id));
+      const snap = await getDocs(q);
+      for (const docSnap of snap.docs) {
+        await deleteDoc(doc(db, 'tracking_history', docSnap.id));
+      }
+      const docRef = doc(db, 'orders', id);
+      await deleteDoc(docRef);
+      return true;
+    } catch (err) {
+      console.error('[DSI Database - Firebase] deleteOrder error:', err);
+      return false;
+    }
+  }
+
+  return false;
+}
+
 /**
  * TESTIMONIALS ENDPOINTS
  */
@@ -859,6 +895,49 @@ export async function autoSeedSupabase() {
   // If we have configurations, temporarily assume enabled to perform active verification query
   if (hasSupabaseConfig && supabase) {
     isSupabaseEnabled = true;
+  }
+
+  // Active cleanup: delete any existing records of Clarisa / Clarissa
+  if (isSupabaseEnabled && supabase) {
+    try {
+      const { data: matchingOrders } = await supabase
+        .from('orders')
+        .select('id')
+        .or('customer_name.ilike.%Clarisa%,customer_name.ilike.%Clarissa%');
+      if (matchingOrders && matchingOrders.length > 0) {
+        console.log(`[DSI Database] Menghapus ${matchingOrders.length} data pesanan Clarisa dari Supabase...`);
+        for (const ord of matchingOrders) {
+          await supabase.from('tracking_history').delete().eq('order_id', ord.id);
+          await supabase.from('orders').delete().eq('id', ord.id);
+        }
+      }
+    } catch (err: any) {
+      console.warn('[DSI Database] Clarisa Supabase cleanup ignored (tables may not exist yet):', err.message || err);
+    }
+  }
+
+  if (db) {
+    try {
+      const q = query(collection(db, 'orders'));
+      const snap = await getDocs(q);
+      for (const docSnap of snap.docs) {
+        const data = docSnap.data();
+        const name = (data.customer_name || '').toLowerCase();
+        if (name.includes('clarisa') || name.includes('clarissa')) {
+          const orderId = docSnap.id;
+          console.log(`[DSI Database] Menghapus data pesanan Clarisa (${orderId}) dari Firestore...`);
+          // Delete tracking history
+          const trackQ = query(collection(db, 'tracking_history'), where('order_id', '==', orderId));
+          const trackSnap = await getDocs(trackQ);
+          for (const trackDoc of trackSnap.docs) {
+            await deleteDoc(doc(db, 'tracking_history', trackDoc.id));
+          }
+          await deleteDoc(doc(db, 'orders', orderId));
+        }
+      }
+    } catch (err: any) {
+      console.error('[DSI Database] Clarisa Firestore cleanup failed:', err.message || err);
+    }
   }
 
   // 1. Seed Supabase if active & empty
@@ -983,11 +1062,11 @@ export async function autoSeedSupabase() {
           const initialOrder = {
             id: orderId,
             order_code: 'BYDSI-0001',
-            customer_name: 'Clarissa Putri',
+            customer_name: 'Budi Santoso',
             whatsapp: '6281234567890',
             product: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
             quantity: 1,
-            notes: 'Please wrap safely as a birthday surprise!',
+            notes: 'Kado ultah adik, tolong dibungkus rapi aman!',
             total_price: 1150000,
             status: 'In Transit',
             created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1050).toISOString()
@@ -1138,11 +1217,11 @@ export async function autoSeedSupabase() {
         const initialOrder = {
           id: orderId,
           order_code: 'BYDSI-0001',
-          customer_name: 'Clarissa Putri',
+          customer_name: 'Budi Santoso',
           whatsapp: '6281234567890',
           product: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
           quantity: 1,
-          notes: 'Please wrap safely as a birthday surprise!',
+          notes: 'Kado ultah adik, tolong dibungkus rapi aman!',
           total_price: 1150000,
           status: 'In Transit',
           created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1050).toISOString()

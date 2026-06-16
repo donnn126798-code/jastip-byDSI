@@ -26,6 +26,7 @@ import {
   updateOrderStatus,
   countTrackingHistory,
   updateOrderPaymentReceipt,
+  deleteOrder,
   getTestimonials,
   createTestimonial,
   deleteTestimonial,
@@ -335,6 +336,19 @@ app.post('/api/orders/:id/receipt', async (req: Request, res: Response) => {
     }
 
     return res.json({ success: true, order: updatedOrder });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete Order (Admin restricted)
+app.delete('/api/orders/:id', authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const deleted = await deleteOrder(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+    }
+    return res.json({ success: true, message: 'Pesanan berhasil dihapus.' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

@@ -242,6 +242,23 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
     }
   };
 
+  const handleDeleteOrder = async (id: string) => {
+    if (!window.confirm('Apakah Anda ingin menghapus data reservasi pesanan ini secara permanen dari server cloud?')) return;
+    try {
+      const res = await fetch(`/api/orders/${id}`, {
+        method: 'DELETE',
+        headers
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Gagal menghapus data pesanan.');
+      }
+      loadAllData();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const handleUpdateOrderStatus = async (orderId: string, status: TrackingStatus) => {
     try {
       const res = await fetch(`/api/orders/${orderId}/status`, {
@@ -982,6 +999,15 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
                           className="w-full flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
                         >
                           <Receipt className="w-3.5 h-3.5 text-pink-500" /> Cetak Struk Belanja
+                        </button>
+
+                        <button
+                          id={`delete-order-btn-${o.id}`}
+                          type="button"
+                          onClick={() => handleDeleteOrder(o.id)}
+                          className="w-full flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-250/20 rounded-xl py-2 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-500" /> Hapus Reservasi
                         </button>
                       </div>
                     </div>
