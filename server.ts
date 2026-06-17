@@ -27,6 +27,7 @@ import {
   countTrackingHistory,
   updateOrderPaymentReceipt,
   deleteOrder,
+  restoreOrder,
   getTestimonials,
   createTestimonial,
   deleteTestimonial,
@@ -354,6 +355,19 @@ app.delete('/api/orders/:id', authenticateAdmin, async (req: Request, res: Respo
   }
 });
 
+// Restore Order (Admin restricted)
+app.post('/api/orders/:id/restore', authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const restored = await restoreOrder(req.params.id);
+    if (!restored) {
+      return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+    }
+    return res.json({ success: true, message: 'Pesanan berhasil dikembalikan.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 /* ==========================================================================
    TESTIMONIALS ENDPOINTS
    ========================================================================== */
@@ -405,7 +419,8 @@ app.delete('/api/testimonials/:id', authenticateAdmin, async (req: Request, res:
 
 app.get('/api/stats', authenticateAdmin, async (req: Request, res: Response) => {
   try {
-    const orders = await getAllOrders();
+    const allOrders = await getAllOrders();
+    const orders = allOrders.filter((o: any) => !o.is_deleted);
     const products = await getProducts();
 
     const productMap = new Map<string, string>();

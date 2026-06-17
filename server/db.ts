@@ -528,7 +528,9 @@ export async function getOrderByCode(code: string): Promise<any> {
         .ilike('order_code', cleanCode);
       
       if (error) throw error;
-      return (data && data.length > 0) ? data[0] : null;
+      const order = (data && data.length > 0) ? data[0] : null;
+      if (order && order.is_deleted) return null;
+      return order;
     } catch (err) {
       console.error('[DSI Database - Supabase] getOrderByCode error:', err);
     }
@@ -541,7 +543,9 @@ export async function getOrderByCode(code: string): Promise<any> {
       const snap = await getDocs(q);
       if (!snap.empty) {
         const docSnap = snap.docs[0];
-        return { id: docSnap.id, ...docSnap.data() };
+        const order: any = { id: docSnap.id, ...docSnap.data() };
+        if (order.is_deleted) return null;
+        return order;
       }
       
       // In-memory case insensitive backup
@@ -550,7 +554,9 @@ export async function getOrderByCode(code: string): Promise<any> {
       allSnap.forEach((docSnap) => {
         const d = docSnap.data() as any;
         if (d.order_code && d.order_code.toUpperCase() === cleanCode) {
-          found = { id: docSnap.id, ...d };
+          if (!d.is_deleted) {
+            found = { id: docSnap.id, ...d };
+          }
         }
       });
       return found;
@@ -742,13 +748,11 @@ export async function deleteOrder(id: string): Promise<boolean> {
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
-      // Also delete related tracking history
-      await supabase.from('tracking_history').delete().eq('order_id', id);
-      const { error } = await supabase.from('orders').delete().eq('id', id);
+      const { error } = await supabase.from('orders').update({ is_deleted: true }).eq('id', id);
       if (error) throw error;
       return true;
     } catch (err) {
-      console.error('[DSI Database - Supabase] deleteOrder error:', err);
+      console.error('[DSI Database - Supabase] deleteOrder soft-delete error:', err);
       return false;
     }
   }
@@ -756,17 +760,39 @@ export async function deleteOrder(id: string): Promise<boolean> {
   // Fallback to Firebase Firestore
   if (db) {
     try {
-      // Also delete related tracking history if exists
-      const q = query(collection(db, 'tracking_history'), where('order_id', '==', id));
-      const snap = await getDocs(q);
-      for (const docSnap of snap.docs) {
-        await deleteDoc(doc(db, 'tracking_history', docSnap.id));
-      }
       const docRef = doc(db, 'orders', id);
-      await deleteDoc(docRef);
+      await setDoc(docRef, { is_deleted: true }, { merge: true });
       return true;
     } catch (err) {
-      console.error('[DSI Database - Firebase] deleteOrder error:', err);
+      console.error('[DSI Database - Firebase] deleteOrder soft-delete error:', err);
+      return false;
+    }
+  }
+
+  return false;
+}
+
+export async function restoreOrder(id: string): Promise<boolean> {
+  // Try Supabase first if active
+  if (isSupabaseEnabled && supabase) {
+    try {
+      const { error } = await supabase.from('orders').update({ is_deleted: false }).eq('id', id);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('[DSI Database - Supabase] restoreOrder error:', err);
+      return false;
+    }
+  }
+
+  // Fallback to Firebase Firestore
+  if (db) {
+    try {
+      const docRef = doc(db, 'orders', id);
+      await setDoc(docRef, { is_deleted: false }, { merge: true });
+      return true;
+    } catch (err) {
+      console.error('[DSI Database - Firebase] restoreOrder error:', err);
       return false;
     }
   }
@@ -940,6 +966,27 @@ export async function autoSeedSupabase() {
     }
   }
 
+  // Active cleanup: delete any existing fake reviews/testimonials
+  if (isSupabaseEnabled && supabase) {
+    try {
+      console.log('[DSI Database] Membersihkan data testimoni bohong dari Supabase...');
+      await supabase.from('testimonials').delete().in('id', ['testi-001', 'testi-002', 'testi-003']);
+    } catch (err: any) {
+      console.warn('[DSI Database] Testimonials Supabase cleanup ignored:', err.message || err);
+    }
+  }
+
+  if (db) {
+    try {
+      console.log('[DSI Database] Membersihkan data testimoni bohong dari Firebase Firestore...');
+      await deleteDoc(doc(db, 'testimonials', 'testi-001'));
+      await deleteDoc(doc(db, 'testimonials', 'testi-002'));
+      await deleteDoc(doc(db, 'testimonials', 'testi-003'));
+    } catch (err: any) {
+      console.error('[DSI Database] Testimonials Firestore cleanup failed:', err.message || err);
+    }
+  }
+
   // 1. Seed Supabase if active & empty
   if (isSupabaseEnabled && supabase) {
     try {
@@ -1024,34 +1071,10 @@ export async function autoSeedSupabase() {
           await supabase.from('products').insert(seedProducts);
         }
 
-        // Seed testimonials if empty
+        // Seed testimonials if empty (disabled as per user request to remove fake testimonials)
         const { data: testiSnap } = await supabase.from('testimonials').select('id').limit(1);
         if (!testiSnap || testiSnap.length === 0) {
-          console.log('[DSI Database] Melakukan seed data testimoni awal di Supabase...');
-          const seedTestimonials = [
-            {
-              id: 'testi-001',
-              customer_name: 'Anindya Kirana',
-              review: 'My pink Stanley arrived in perfect condition! The packaging was so beautiful, like unboxing a luxury designer piece. Truly reliable personal shopping service. Custom notes were handwritten too!',
-              rating: 5,
-              image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'
-            },
-            {
-              id: 'testi-002',
-              customer_name: 'Sherly Septiani',
-              review: 'Very fast and responsive! Best Jastip service I have ever tried. Always get the rarest limited edition Stanley colors that other shoppers cannot secure. 10/10 recommended for active tumbler lovers!',
-              rating: 5,
-              image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150'
-            },
-            {
-              id: 'testi-003',
-              customer_name: 'Nadia Salsabila',
-              review: 'The Sakura Blossom Gift Set was the absolute perfect bridal shower gift for my best friend. The satin-lined box was stunningly luxurious. Jastip byDSI provides exceptional high-society aesthetic!',
-              rating: 5,
-              image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150'
-            }
-          ];
-          await supabase.from('testimonials').insert(seedTestimonials);
+          console.log('[DSI Database] Melakukan seed data testimoni awal di Supabase... (Dibatalkan karena ulasan bohong)');
         }
 
         // Seed initial order if empty
@@ -1175,37 +1198,11 @@ export async function autoSeedSupabase() {
         }
       }
 
-      // Seed testimonials if empty
+      // Seed testimonials if empty (disabled as per user request to remove fake testimonials)
       const testiRef = collection(db, 'testimonials');
       const testiSnap = await getDocs(query(testiRef, limit(1)));
       if (testiSnap.empty) {
-        console.log('[DSI Database] Melakukan seed data testimoni awal di Firebase Firestore...');
-        const seedTestimonials = [
-          {
-            id: 'testi-001',
-            customer_name: 'Anindya Kirana',
-            review: 'My pink Stanley arrived in perfect condition! The packaging was so beautiful, like unboxing a luxury designer piece. Truly reliable personal shopping service. Custom notes were handwritten too!',
-            rating: 5,
-            image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'
-          },
-          {
-            id: 'testi-002',
-            customer_name: 'Sherly Septiani',
-            review: 'Very fast and responsive! Best Jastip service I have ever tried. Always get the rarest limited edition Stanley colors that other shoppers cannot secure. 10/10 recommended for active tumbler lovers!',
-            rating: 5,
-            image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150'
-          },
-          {
-            id: 'testi-003',
-            customer_name: 'Nadia Salsabila',
-            review: 'The Sakura Blossom Gift Set was the absolute perfect bridal shower gift for my best friend. The satin-lined box was stunningly luxurious. Jastip byDSI provides exceptional high-society aesthetic!',
-            rating: 5,
-            image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150'
-          }
-        ];
-        for (const t of seedTestimonials) {
-          await setDoc(doc(db, 'testimonials', t.id), t);
-        }
+        console.log('[DSI Database] Melakukan seed data testimoni awal di Firebase Firestore... (Dibatalkan karena ulasan bohong)');
       }
 
       // Seed initial order if empty

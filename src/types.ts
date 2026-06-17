@@ -57,6 +57,7 @@ export interface Order {
   payment_receipt?: string;
   resi_number?: string;
   admin_notes?: string;
+  is_deleted?: boolean;
 }
 
 export interface TrackingHistory {

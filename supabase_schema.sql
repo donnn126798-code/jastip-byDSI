@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at TEXT NOT NULL,
   payment_receipt TEXT,
   resi_number TEXT,
-  admin_notes TEXT
+  admin_notes TEXT,
+  is_deleted BOOLEAN DEFAULT FALSE
 );
 
 -- 4. Membuat Tabel 'tracking_history'

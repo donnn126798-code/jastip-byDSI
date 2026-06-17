@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  TrendingUp, ShoppingBag, Users, DollarSign, Package, Trash2, 
+  TrendingUp, ShoppingBag, Users, DollarSign, Package, Trash2, RotateCcw,
   Edit3, Plus, RefreshCw, BarChart2, ShieldAlert, LogOut, Check, Search, Filter,
   Download, Eye, MessageSquare, CheckSquare, FileText, CheckCircle, ExternalLink, Calendar, Info,
   Receipt, Printer, Copy, Database
@@ -65,6 +65,7 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
   // Search & Filters
   const [orderSearch, setOrderSearch] = useState('');
   const [orderFilter, setOrderFilter] = useState<string>('All');
+  const [showDeletedOnly, setShowDeletedOnly] = useState(false);
   
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -243,7 +244,7 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
   };
 
   const handleDeleteOrder = async (id: string) => {
-    if (!window.confirm('Apakah Anda ingin menghapus data reservasi pesanan ini secara permanen dari server cloud?')) return;
+    if (!window.confirm('Apakah Anda yakin ingin memindahkan reservasi pesanan ini ke Tong Sampah?')) return;
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: 'DELETE',
@@ -252,6 +253,23 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || 'Gagal menghapus data pesanan.');
+      }
+      loadAllData();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleRestoreOrder = async (id: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin mengembalikan/memulihkan data reservasi pesanan ini?')) return;
+    try {
+      const res = await fetch(`/api/orders/${id}/restore`, {
+        method: 'POST',
+        headers
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Gagal mengembalikan data pesanan.');
       }
       loadAllData();
     } catch (err: any) {
@@ -375,10 +393,11 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
 
   // Filter orders
   const filteredOrders = orders.filter((o) => {
+    const isDeletedMatch = showDeletedOnly ? !!o.is_deleted : !o.is_deleted;
     const matchesSearch = o.customer_name.toLowerCase().includes(orderSearch.toLowerCase()) || 
                           o.order_code.toLowerCase().includes(orderSearch.toLowerCase());
     const matchesStatus = orderFilter === 'All' || o.status === orderFilter;
-    return matchesSearch && matchesStatus;
+    return isDeletedMatch && matchesSearch && matchesStatus;
   });
 
   const COLORS = ['#FF80DF', '#FFB3EC', '#E60099', '#FF99D8', '#CCCCCC'];
@@ -843,6 +862,23 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
                   </div>
 
                   <button
+                    id="toggle-deleted-orders"
+                    type="button"
+                    onClick={() => setShowDeletedOnly(!showDeletedOnly)}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-3xs border ${showDeletedOnly ? 'bg-slate-800 text-white border-slate-950 hover:bg-slate-700' : 'bg-rose-50 text-rose-600 border-rose-100/50 hover:bg-rose-100'}`}
+                  >
+                    {showDeletedOnly ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" /> Tampilkan Pesanan Aktif
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-3.5 h-3.5 text-rose-500" /> Lihat Tong Sampah
+                      </>
+                    )}
+                  </button>
+
+                  <button
                     id="export-csv-btn"
                     type="button"
                     onClick={exportOrdersToCSV}
@@ -974,41 +1010,54 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
 
                       {/* Dropdown status modifier controller & quick actions */}
                       <div className="border-t border-slate-50 pt-4 md:border-transparent md:pt-0 shrink-0 flex flex-col gap-2 md:-mt-1 md:w-52">
-                        <button
-                          id={`update-detail-btn-${o.id}`}
-                          type="button"
-                          onClick={() => openDetailedStatusModal(o)}
-                          className="w-full flex items-center justify-center gap-1.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" /> Ubah Status & Resi
-                        </button>
+                        {showDeletedOnly ? (
+                          <button
+                            id={`restore-order-btn-${o.id}`}
+                            type="button"
+                            onClick={() => handleRestoreOrder(o.id)}
+                            className="w-full flex items-center justify-center gap-1.5 bg-emerald-550 hover:bg-emerald-600 text-white rounded-xl py-3 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98 bg-emerald-600"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" /> Kembalikan Reservasi
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              id={`update-detail-btn-${o.id}`}
+                              type="button"
+                              onClick={() => openDetailedStatusModal(o)}
+                              className="w-full flex items-center justify-center gap-1.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" /> Ubah Status & Resi
+                            </button>
 
-                        <button
-                          id={`quick-whatsapp-btn-${o.id}`}
-                          type="button"
-                          onClick={() => setWaModalOrder(o)}
-                          className="w-full flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" /> Notifikasi WhatsApp
-                        </button>
+                            <button
+                              id={`quick-whatsapp-btn-${o.id}`}
+                              type="button"
+                              onClick={() => setWaModalOrder(o)}
+                              className="w-full flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" /> Notifikasi WhatsApp
+                            </button>
 
-                        <button
-                          id={`print-invoice-btn-${o.id}`}
-                          type="button"
-                          onClick={() => setShowInvoiceModalOrder(o)}
-                          className="w-full flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
-                        >
-                          <Receipt className="w-3.5 h-3.5 text-pink-500" /> Cetak Struk Belanja
-                        </button>
+                            <button
+                              id={`print-invoice-btn-${o.id}`}
+                              type="button"
+                              onClick={() => setShowInvoiceModalOrder(o)}
+                              className="w-full flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
+                            >
+                              <Receipt className="w-3.5 h-3.5 text-pink-500" /> Cetak Struk Belanja
+                            </button>
 
-                        <button
-                          id={`delete-order-btn-${o.id}`}
-                          type="button"
-                          onClick={() => handleDeleteOrder(o.id)}
-                          className="w-full flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-250/20 rounded-xl py-2 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-rose-500" /> Hapus Reservasi
-                        </button>
+                            <button
+                              id={`delete-order-btn-${o.id}`}
+                              type="button"
+                              onClick={() => handleDeleteOrder(o.id)}
+                              className="w-full flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-250/20 rounded-xl py-2 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-500" /> Hapus Reservasi
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
