@@ -28,6 +28,7 @@ import {
   updateOrderPaymentReceipt,
   deleteOrder,
   restoreOrder,
+  deleteOrderPermanently,
   getTestimonials,
   createTestimonial,
   deleteTestimonial,
@@ -363,6 +364,19 @@ app.post('/api/orders/:id/restore', authenticateAdmin, async (req: Request, res:
       return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
     }
     return res.json({ success: true, message: 'Pesanan berhasil dikembalikan.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Permanent Delete Order (Admin restricted - from trash bin)
+app.delete('/api/orders/:id/permanent', authenticateAdmin, async (req: Request, res: Response) => {
+  try {
+    const deleted = await deleteOrderPermanently(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+    }
+    return res.json({ success: true, message: 'Pesanan berhasil dihapus secara permanen.' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

@@ -745,43 +745,52 @@ export async function updateOrderPaymentReceipt(id: string, payment_receipt: str
 }
 
 export async function deleteOrder(id: string): Promise<boolean> {
+  let supabaseSuccess = false;
+  let firebaseSuccess = false;
+
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
       const { error } = await supabase.from('orders').update({ is_deleted: true }).eq('id', id);
-      if (error) throw error;
-      return true;
+      if (error) {
+        console.warn('[DSI Database - Supabase] deleteOrder soft-delete warn:', error);
+      } else {
+        supabaseSuccess = true;
+      }
     } catch (err) {
-      console.error('[DSI Database - Supabase] deleteOrder soft-delete error:', err);
-      return false;
+      console.error('[DSI Database - Supabase] deleteOrder soft-delete exception:', err);
     }
   }
 
-  // Fallback to Firebase Firestore
+  // Fallback / sync to Firebase Firestore
   if (db) {
     try {
       const docRef = doc(db, 'orders', id);
       await setDoc(docRef, { is_deleted: true }, { merge: true });
-      return true;
+      firebaseSuccess = true;
     } catch (err) {
       console.error('[DSI Database - Firebase] deleteOrder soft-delete error:', err);
-      return false;
     }
   }
 
-  return false;
+  return supabaseSuccess || firebaseSuccess || (!isSupabaseEnabled && !db);
 }
 
 export async function restoreOrder(id: string): Promise<boolean> {
+  let supabaseSuccess = false;
+  let firebaseSuccess = false;
+
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
       const { error } = await supabase.from('orders').update({ is_deleted: false }).eq('id', id);
-      if (error) throw error;
-      return true;
+      if (error) {
+        console.warn('[DSI Database - Supabase] restoreOrder warn:', error);
+      } else {
+        supabaseSuccess = true;
+      }
     } catch (err) {
       console.error('[DSI Database - Supabase] restoreOrder error:', err);
-      return false;
     }
   }
 
@@ -790,14 +799,45 @@ export async function restoreOrder(id: string): Promise<boolean> {
     try {
       const docRef = doc(db, 'orders', id);
       await setDoc(docRef, { is_deleted: false }, { merge: true });
-      return true;
+      firebaseSuccess = true;
     } catch (err) {
       console.error('[DSI Database - Firebase] restoreOrder error:', err);
-      return false;
     }
   }
 
-  return false;
+  return supabaseSuccess || firebaseSuccess || (!isSupabaseEnabled && !db);
+}
+
+export async function deleteOrderPermanently(id: string): Promise<boolean> {
+  let supabaseSuccess = false;
+  let firebaseSuccess = false;
+
+  // Try Supabase first if active
+  if (isSupabaseEnabled && supabase) {
+    try {
+      const { error } = await supabase.from('orders').delete().eq('id', id);
+      if (error) {
+        console.warn('[DSI Database - Supabase] deleteOrderPermanently warn:', error);
+      } else {
+        supabaseSuccess = true;
+      }
+    } catch (err) {
+      console.error('[DSI Database - Supabase] deleteOrderPermanently exception:', err);
+    }
+  }
+
+  // Fallback / sync to Firebase Firestore
+  if (db) {
+    try {
+      const docRef = doc(db, 'orders', id);
+      await deleteDoc(docRef);
+      firebaseSuccess = true;
+    } catch (err) {
+      console.error('[DSI Database - Firebase] deleteOrderPermanently error:', err);
+    }
+  }
+
+  return supabaseSuccess || firebaseSuccess || (!isSupabaseEnabled && !db);
 }
 
 /**

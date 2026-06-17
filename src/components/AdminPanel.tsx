@@ -99,6 +99,37 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
   const [showInvoiceModalOrder, setShowInvoiceModalOrder] = useState<Order | null>(null);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
 
+  // Custom Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    theme?: 'rose' | 'pink' | 'emerald' | 'slate';
+  } | null>(null);
+
+  const requestConfirmation = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    options?: { confirmText?: string; cancelText?: string; theme?: 'rose' | 'pink' | 'emerald' | 'slate' }
+  ) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmDialog(null);
+      },
+      confirmText: options?.confirmText || 'Ya, Lanjutkan',
+      cancelText: options?.cancelText || 'Batal',
+      theme: options?.theme || 'pink'
+    });
+  };
+
   const handleCopyOrderCode = (orderId: string, code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedOrderId(orderId);
@@ -226,55 +257,96 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
     }
   };
 
-  const handleDeleteProduct = async (id: string) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus produk ini? Semua metrik akan dihitung ulang.')) return;
-    try {
-      const res = await fetch(`/api/products/${id}`, {
-        method: 'DELETE',
-        headers
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Gagal menghapus produk.');
-      }
-      loadAllData();
-    } catch (err: any) {
-      alert(err.message);
-    }
+  const handleDeleteProduct = (id: string) => {
+    requestConfirmation(
+      'Hapus Produk Sourcing',
+      'Apakah Anda yakin ingin menghapus produk ini secara permanen dari server cloud? Semua metrik penjualan akan dihitung ulang.',
+      async () => {
+        try {
+          const res = await fetch(`/api/products/${id}`, {
+            method: 'DELETE',
+            headers
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Gagal menghapus produk.');
+          }
+          loadAllData();
+        } catch (err: any) {
+          setErrorMsg(err.message);
+        }
+      },
+      { confirmText: 'Hapus Permanen', theme: 'rose' }
+    );
   };
 
-  const handleDeleteOrder = async (id: string) => {
-    if (!window.confirm('Apakah Anda yakin ingin memindahkan reservasi pesanan ini ke Tong Sampah?')) return;
-    try {
-      const res = await fetch(`/api/orders/${id}`, {
-        method: 'DELETE',
-        headers
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Gagal menghapus data pesanan.');
-      }
-      loadAllData();
-    } catch (err: any) {
-      alert(err.message);
-    }
+  const handleDeleteOrder = (id: string) => {
+    requestConfirmation(
+      'Pindahkan Reservasi ke Tong Sampah',
+      'Apakah Anda yakin ingin memindahkan data reservasi pesanan ini ke Tong Sampah?',
+      async () => {
+        try {
+          const res = await fetch(`/api/orders/${id}`, {
+            method: 'DELETE',
+            headers
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Gagal menghapus data pesanan.');
+          }
+          loadAllData();
+        } catch (err: any) {
+          setErrorMsg(err.message);
+        }
+      },
+      { confirmText: 'Pindahkan ke Sampah', theme: 'rose' }
+    );
   };
 
-  const handleRestoreOrder = async (id: string) => {
-    if (!window.confirm('Apakah Anda yakin ingin mengembalikan/memulihkan data reservasi pesanan ini?')) return;
-    try {
-      const res = await fetch(`/api/orders/${id}/restore`, {
-        method: 'POST',
-        headers
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Gagal mengembalikan data pesanan.');
-      }
-      loadAllData();
-    } catch (err: any) {
-      alert(err.message);
-    }
+  const handleDeleteOrderPermanently = (id: string) => {
+    requestConfirmation(
+      'Hapus Reservasi Secara Permanen',
+      'Apakah Anda yakin ingin menghapus reservasi pesanan ini secara permanen dari database cloud? Tindakan ini tidak bisa dibatalkan atau dipulihkan kembali.',
+      async () => {
+        try {
+          const res = await fetch(`/api/orders/${id}/permanent`, {
+            method: 'DELETE',
+            headers
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Gagal menghapus data pesanan secara permanen.');
+          }
+          loadAllData();
+        } catch (err: any) {
+          setErrorMsg(err.message);
+        }
+      },
+      { confirmText: 'Ya, Hapus Permanen', theme: 'rose' }
+    );
+  };
+
+  const handleRestoreOrder = (id: string) => {
+    requestConfirmation(
+      'Pulihkan Reservasi Pesanan',
+      'Apakah Anda yakin ingin mengembalikan/memulihkan data reservasi pesanan ini ke daftar aktif?',
+      async () => {
+        try {
+          const res = await fetch(`/api/orders/${id}/restore`, {
+            method: 'POST',
+            headers
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Gagal mengembalikan data pesanan.');
+          }
+          loadAllData();
+        } catch (err: any) {
+          setErrorMsg(err.message);
+        }
+      },
+      { confirmText: 'Pulihkan Sekarang', theme: 'pink' }
+    );
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: TrackingStatus) => {
@@ -374,21 +446,27 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
     document.body.removeChild(link);
   };
 
-  const handleDeleteTestimonial = async (id: string) => {
-    if (!window.confirm('Hapus ulasan testimoni klien ini?')) return;
-    try {
-      const res = await fetch(`/api/testimonials/${id}`, {
-        method: 'DELETE',
-        headers
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Gagal menghapus ulasan testimoni.');
-      }
-      loadAllData();
-    } catch (err: any) {
-      alert(err.message);
-    }
+  const handleDeleteTestimonial = (id: string) => {
+    requestConfirmation(
+      'Hapus Ulasan Testimoni',
+      'Apakah Anda yakin ingin menghapus ulasan testimoni klien ini secara permanen dari server cloud?',
+      async () => {
+        try {
+          const res = await fetch(`/api/testimonials/${id}`, {
+            method: 'DELETE',
+            headers
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Gagal menghapus ulasan testimoni.');
+          }
+          loadAllData();
+        } catch (err: any) {
+          setErrorMsg(err.message);
+        }
+      },
+      { confirmText: 'Ya, Hapus', theme: 'rose' }
+    );
   };
 
   // Filter orders
@@ -1011,14 +1089,25 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
                       {/* Dropdown status modifier controller & quick actions */}
                       <div className="border-t border-slate-50 pt-4 md:border-transparent md:pt-0 shrink-0 flex flex-col gap-2 md:-mt-1 md:w-52">
                         {showDeletedOnly ? (
-                          <button
-                            id={`restore-order-btn-${o.id}`}
-                            type="button"
-                            onClick={() => handleRestoreOrder(o.id)}
-                            className="w-full flex items-center justify-center gap-1.5 bg-emerald-550 hover:bg-emerald-600 text-white rounded-xl py-3 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98 bg-emerald-600"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" /> Kembalikan Reservasi
-                          </button>
+                          <>
+                            <button
+                              id={`restore-order-btn-${o.id}`}
+                              type="button"
+                              onClick={() => handleRestoreOrder(o.id)}
+                              className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" /> Kembalikan Reservasi
+                            </button>
+
+                            <button
+                              id={`permanent-delete-order-btn-${o.id}`}
+                              type="button"
+                              onClick={() => handleDeleteOrderPermanently(o.id)}
+                              className="w-full flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-250/20 rounded-xl py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-98"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-500" /> Hapus Permanen
+                            </button>
+                          </>
                         ) : (
                           <>
                             <button
@@ -1499,6 +1588,52 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
             <p className="text-[10px] text-slate-400 font-light text-center print:hidden">
               Gunakan opsi <strong>Cetak / Simpan</strong> untuk mengunduh struk ini sebagai file PDF resmi atau mencetaknya ke printer kasir/kertas domestik.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM CONFIRMATION DIALOG MODAL */}
+      {confirmDialog && confirmDialog.isOpen && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in print:hidden">
+          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md border border-pink-100/50 shadow-2xl space-y-6 text-center animate-scale-up">
+            <div className="flex flex-col items-center space-y-3.5">
+              <div className={`p-4 rounded-full ${
+                confirmDialog.theme === 'rose' ? 'bg-rose-50 text-rose-600' :
+                confirmDialog.theme === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
+                confirmDialog.theme === 'slate' ? 'bg-slate-100 text-slate-700' :
+                'bg-pink-50 text-pink-600'
+              }`}>
+                <Info className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 tracking-tight">{confirmDialog.title}</h3>
+              <p className="text-sm text-slate-500 font-light leading-relaxed">
+                {confirmDialog.message}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                id="confirm-dialog-cancel"
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-98"
+              >
+                {confirmDialog.cancelText || 'Batal'}
+              </button>
+              <button
+                id="confirm-dialog-btn"
+                type="button"
+                onClick={confirmDialog.onConfirm}
+                className={`w-1/2 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-98 ${
+                  confirmDialog.theme === 'rose' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' :
+                  confirmDialog.theme === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' :
+                  confirmDialog.theme === 'slate' ? 'bg-slate-700 hover:bg-slate-800 shadow-slate-200' :
+                  'bg-pink-500 hover:bg-pink-600 shadow-pink-200'
+                } shadow-md`}
+              >
+                {confirmDialog.confirmText || 'Lanjutkan'}
+              </button>
+            </div>
           </div>
         </div>
       )}
