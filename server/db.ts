@@ -56,7 +56,7 @@ if (supabaseUrl && supabaseKey) {
 
 // 2. Initialize Firebase Firestore from config file (primarily for AI Studio preview)
 let db: any = null;
-let isFirebaseEnabled = false;
+export let isFirebaseEnabled = false;
 
 try {
   const configPath = join(process.cwd(), 'firebase-applet-config.json');
@@ -963,69 +963,7 @@ export async function autoSeedSupabase() {
     isSupabaseEnabled = true;
   }
 
-  // Active cleanup: delete any existing records of Clarisa / Clarissa
-  if (isSupabaseEnabled && supabase) {
-    try {
-      const { data: matchingOrders } = await supabase
-        .from('orders')
-        .select('id')
-        .or('customer_name.ilike.%Clarisa%,customer_name.ilike.%Clarissa%');
-      if (matchingOrders && matchingOrders.length > 0) {
-        console.log(`[DSI Database] Menghapus ${matchingOrders.length} data pesanan Clarisa dari Supabase...`);
-        for (const ord of matchingOrders) {
-          await supabase.from('tracking_history').delete().eq('order_id', ord.id);
-          await supabase.from('orders').delete().eq('id', ord.id);
-        }
-      }
-    } catch (err: any) {
-      console.warn('[DSI Database] Clarisa Supabase cleanup ignored (tables may not exist yet):', err.message || err);
-    }
-  }
-
-  if (db) {
-    try {
-      const q = query(collection(db, 'orders'));
-      const snap = await getDocs(q);
-      for (const docSnap of snap.docs) {
-        const data = docSnap.data();
-        const name = (data.customer_name || '').toLowerCase();
-        if (name.includes('clarisa') || name.includes('clarissa')) {
-          const orderId = docSnap.id;
-          console.log(`[DSI Database] Menghapus data pesanan Clarisa (${orderId}) dari Firestore...`);
-          // Delete tracking history
-          const trackQ = query(collection(db, 'tracking_history'), where('order_id', '==', orderId));
-          const trackSnap = await getDocs(trackQ);
-          for (const trackDoc of trackSnap.docs) {
-            await deleteDoc(doc(db, 'tracking_history', trackDoc.id));
-          }
-          await deleteDoc(doc(db, 'orders', orderId));
-        }
-      }
-    } catch (err: any) {
-      console.error('[DSI Database] Clarisa Firestore cleanup failed:', err.message || err);
-    }
-  }
-
-  // Active cleanup: delete any existing fake reviews/testimonials
-  if (isSupabaseEnabled && supabase) {
-    try {
-      console.log('[DSI Database] Membersihkan data testimoni bohong dari Supabase...');
-      await supabase.from('testimonials').delete().in('id', ['testi-001', 'testi-002', 'testi-003']);
-    } catch (err: any) {
-      console.warn('[DSI Database] Testimonials Supabase cleanup ignored:', err.message || err);
-    }
-  }
-
-  if (db) {
-    try {
-      console.log('[DSI Database] Membersihkan data testimoni bohong dari Firebase Firestore...');
-      await deleteDoc(doc(db, 'testimonials', 'testi-001'));
-      await deleteDoc(doc(db, 'testimonials', 'testi-002'));
-      await deleteDoc(doc(db, 'testimonials', 'testi-003'));
-    } catch (err: any) {
-      console.error('[DSI Database] Testimonials Firestore cleanup failed:', err.message || err);
-    }
-  }
+  // Active cleanup of specific test data on startup has been removed to prevent resetting user data on restart.
 
   // 1. Seed Supabase if active & empty
   if (isSupabaseEnabled && supabase) {
@@ -1039,18 +977,19 @@ export async function autoSeedSupabase() {
         isSupabaseEnabled = false;
         // Skip Supabase seeding since tables aren't deployed
       } else {
-        if (!adminSnap || adminSnap.length === 0) {
+        const isFreshSupabase = (!adminSnap || adminSnap.length === 0);
+        
+        if (isFreshSupabase) {
+          console.log('[DSI Database] Basis data Supabase baru terdeteksi! Mengunggah data awal...');
+          
           console.log('[DSI Database] Melakukan seed data admin awal di Supabase...');
           await supabase.from('admins').insert([
             { id: 'admin-dony', username: 'Dony', password_hash: hashPassword('JastipDesiRistanti123') },
             { id: 'admin-desi', username: 'Desi', password_hash: hashPassword('JastipDesiRistanti123') },
             { id: 'admin-rori', username: 'Rori', password_hash: hashPassword('JastipDesiRistanti123') }
           ]);
-        }
 
-        // Seed products if empty
-        const { data: productSnap } = await supabase.from('products').select('id').limit(1);
-        if (!productSnap || productSnap.length === 0) {
+          // Seed products
           console.log('[DSI Database] Melakukan seed data katalog jastip awal di Supabase...');
           const seedProducts = [
             {
@@ -1109,17 +1048,8 @@ export async function autoSeedSupabase() {
             }
           ];
           await supabase.from('products').insert(seedProducts);
-        }
 
-        // Seed testimonials if empty (disabled as per user request to remove fake testimonials)
-        const { data: testiSnap } = await supabase.from('testimonials').select('id').limit(1);
-        if (!testiSnap || testiSnap.length === 0) {
-          console.log('[DSI Database] Melakukan seed data testimoni awal di Supabase... (Dibatalkan karena ulasan bohong)');
-        }
-
-        // Seed initial order if empty
-        const { data: orderSnap } = await supabase.from('orders').select('id').limit(1);
-        if (!orderSnap || orderSnap.length === 0) {
+          // Seed initial order for Budi Santoso
           console.log('[DSI Database] Melakukan seed data pesanan awal di Supabase...');
           const orderId = 'order-initial-01';
           const initialOrder = {
@@ -1143,10 +1073,9 @@ export async function autoSeedSupabase() {
             { id: 'track-04', order_id: orderId, status: 'In Transit', updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1050).toISOString() }
           ];
           await supabase.from('tracking_history').insert(trackingHistory);
-        }
-        
-        if (isSupabaseEnabled) {
           console.log('[DSI Database] Proses seeding Supabase selesai dengan aman! 🎆');
+        } else {
+          console.log('[DSI Database] Database Supabase sudah terinisialisasi sebelumnya. Melewati auto-seeding untuk mencegah reset data.');
         }
       }
     } catch (err: any) {
@@ -1160,7 +1089,10 @@ export async function autoSeedSupabase() {
       // Seed admins if empty
       const adminRef = collection(db, 'admins');
       const adminSnap = await getDocs(query(adminRef, limit(1)));
-      if (adminSnap.empty) {
+      const isFreshFirebase = adminSnap.empty;
+
+      if (isFreshFirebase) {
+        console.log('[DSI Database] Basis data Firebase Firestore baru terdeteksi! Mengunggah data awal...');
         console.log('[DSI Database] Melakukan seed data admin awal di Firebase Firestore...');
         const targetAdmins = [
           { id: 'admin-dony', username: 'Dony', password_hash: hashPassword('JastipDesiRistanti123') },
@@ -1170,12 +1102,8 @@ export async function autoSeedSupabase() {
         for (const a of targetAdmins) {
           await setDoc(doc(db, 'admins', a.id), a);
         }
-      }
 
-      // Seed products if empty
-      const productRef = collection(db, 'products');
-      const productSnap = await getDocs(query(productRef, limit(1)));
-      if (productSnap.empty) {
+        // Seed products
         console.log('[DSI Database] Melakukan seed data katalog jastip awal di Firebase Firestore...');
         const seedProducts = [
           {
@@ -1236,19 +1164,8 @@ export async function autoSeedSupabase() {
         for (const p of seedProducts) {
           await setDoc(doc(db, 'products', p.id), p);
         }
-      }
 
-      // Seed testimonials if empty (disabled as per user request to remove fake testimonials)
-      const testiRef = collection(db, 'testimonials');
-      const testiSnap = await getDocs(query(testiRef, limit(1)));
-      if (testiSnap.empty) {
-        console.log('[DSI Database] Melakukan seed data testimoni awal di Firebase Firestore... (Dibatalkan karena ulasan bohong)');
-      }
-
-      // Seed initial order if empty
-      const orderRef = collection(db, 'orders');
-      const orderSnap = await getDocs(query(orderRef, limit(1)));
-      if (orderSnap.empty) {
+        // Seed initial order for Budi Santoso
         console.log('[DSI Database] Melakukan seed data pesanan awal di Firebase Firestore...');
         const orderId = 'order-initial-01';
         const initialOrder = {
@@ -1274,6 +1191,9 @@ export async function autoSeedSupabase() {
         for (const tracker of tracking_history) {
           await setDoc(doc(db, 'tracking_history', tracker.id), tracker);
         }
+        console.log('[DSI Database] Seeding database Firebase Firestore selesai!');
+      } else {
+        console.log('[DSI Database] Database Firebase Firestore sudah terinisialisasi sebelumnya. Melewati auto-seeding untuk mencegah reset data.');
       }
       
       console.log('[DSI Database] Proses pengecekan & seeding Firebase selesai! Cloud NoSQL database siap pakai penuh.');

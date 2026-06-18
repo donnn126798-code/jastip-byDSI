@@ -1,1 +1,36 @@
 @import "tailwindcss";
+
+@media print {
+  /* Sembunyikan semua elemen di layar kecuali struk receipt */
+  body * {
+    visibility: hidden;
+    background: none !important;
+  }
+  
+  /* Tampilkan hanya wadah print-receipt-container beserta anak-anaknya */
+  .print-receipt-container,
+  .print-receipt-container * {
+    visibility: visible !important;
+  }
+  
+  /* Posisikan wadah cetak secara absolut di pojok kiri atas halaman kertas */
+  .print-receipt-container {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    box-shadow: none !important;
+    border: none !important;
+    background-color: white !important;
+    color: black !important;
+  }
+
+  /* Elemen khusus yang harus disembunyikan saat mencetak */
+  .print\:hidden {
+    display: none !important;
+  }
+}
+

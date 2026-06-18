@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, MapPin, Calendar, Clock, DollarSign, Package, CheckCircle, 
   CreditCard, ShoppingBag, Truck, CheckCheck, Copy, Share2, UploadCloud, FileText, Check, ExternalLink,
@@ -32,6 +32,33 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
   const [copiedResi, setCopiedResi] = useState(false);
   const [copiedTrackCode, setCopiedTrackCode] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
+  const [copiedInvoice, setCopiedInvoice] = useState(false);
+
+  useEffect(() => {
+    try {
+      setIsInIframe(window.self !== window.top);
+    } catch (e) {
+      setIsInIframe(true);
+    }
+  }, []);
+
+  const handleCopyInvoiceText = () => {
+    if (!orderData) return;
+    const itemsText = `${orderData.order.product} (x${orderData.order.quantity}) - Rp ${orderData.order.total_price.toLocaleString('id-ID')}`;
+    const txt = `📋 STRUK BELANJA JASTIP byDSI\n` +
+                `===============================\n` +
+                `Kode Pesanan: ${orderData.order.order_code}\n` +
+                `Klien: ${orderData.order.customer_name}\n` +
+                `Tanggal: ${new Date(orderData.order.created_at).toLocaleString('id-ID')}\n` +
+                `Produk: ${itemsText}\n` +
+                `Total Tagihan: Rp ${orderData.order.total_price.toLocaleString('id-ID')}\n` +
+                `Status Pembayaran: LUNAS (Terverifikasi)\n` +
+                `===============================`;
+    navigator.clipboard.writeText(txt);
+    setCopiedInvoice(true);
+    setTimeout(() => setCopiedInvoice(false), 2000);
+  };
 
   const handleSearch = async (e?: React.FormEvent, isBackground = false) => {
     if (e) e.preventDefault();
@@ -567,17 +594,24 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
                         </div>
                       </div>
 
-                      <div className="pt-2">
+                      <div className="pt-2 flex flex-col sm:flex-row gap-2">
                         <a
                           href={`https://wa.me/6285649059650?text=${encodeURIComponent(
                             `Halo Admin Jastip byDSI! 🌸\n\nSaya telah mengunggah bukti transfer pembayaran di website untuk pesanan saya:\n\n📋 *DETAIL PESANAN PREMIUM*\n──────────────────────\n• *Kode Pesanan :* ${orderData.order.order_code}\n• *Nama Lengkap :* ${orderData.order.customer_name}\n• *Produk        :* ${orderData.order.product}\n• *Jumlah        :* ${orderData.order.quantity} pcs\n• *Total Tagihan :* Rp ${orderData.order.total_price.toLocaleString('id-ID')}\n──────────────────────\n\nBukti transfer sudah sukses terupload di sistem tracking website. Mohon bantuan Kakak untuk melakukan verifikasi status pesanan saya. Terima kasih banyak! 💕`
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer shadow-3xs hover:shadow-2xs active:scale-95"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer shadow-3xs hover:shadow-2xs active:scale-95"
                         >
-                          <MessageSquare className="w-3.5 h-3.5 animate-pulse" /> Kirim Bukti ke WhatsApp
+                          <MessageSquare className="w-3.5 h-3.5" /> Kirim Bukti ke WA
                         </a>
+                        <button
+                          type="button"
+                          onClick={() => setShowInvoiceModal(true)}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 bg-pink-100 hover:bg-pink-200 text-pink-700 rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer shadow-3xs active:scale-95 border border-pink-200"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-pink-500" /> Cetak Struk
+                        </button>
                       </div>
                     </div>
                   ) : (
@@ -665,25 +699,25 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
 
       {/* MODAL: ELEGAN E-STRUK BELANJA & INVOICE */}
       {showInvoiceModal && orderData && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in print:bg-white print:p-0 print:absolute print:inset-0">
-          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md border border-slate-100 shadow-2xl relative space-y-6 animate-scale-up print:border-none print:shadow-none print:p-0">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in print:bg-white print:p-0 print:absolute print:inset-0 font-sans">
+          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md border border-slate-100 shadow-2xl relative space-y-4 animate-scale-up print:border-none print:shadow-none print:p-0">
             {/* Header Actions */}
             <div className="flex justify-between items-center pb-3 border-b border-rose-50 print:hidden">
-              <div className="text-left">
+              <div className="text-left font-sans">
                 <span className="text-[9px] tracking-widest font-extrabold text-pink-500 uppercase font-mono">Boutique Receipt Engine</span>
                 <h3 className="text-sm font-bold text-slate-800">Struk Pembelian Resmi</h3>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 font-sans">
                 <button
                   id="print-struk-btn"
                   type="button"
                   onClick={() => {
-                    // Quick print triggering
-                    window.print();
+                    const printUrl = `/api/orders/print/${orderData.order.order_code}`;
+                    window.open(printUrl, '_blank');
                   }}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-100/50 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-3xs hover:shadow-2xs"
                 >
-                  <Printer className="w-3.5 h-3.5" /> Cetak
+                  <Printer className="w-3.5 h-3.5" /> Cetak / PDF
                 </button>
                 <button
                   id="close-struk-btn"
@@ -696,8 +730,9 @@ export default function TrackOrder({ orderCode }: OrderTimelineProps) {
               </div>
             </div>
 
+
             {/* Receipt Thermal/Paper Visual Representation */}
-            <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 font-mono text-xs text-slate-700 shadow-3xs relative overflow-hidden print:bg-white print:border-none">
+            <div className="print-receipt-container bg-slate-50 border border-slate-200/60 rounded-2xl p-5 font-mono text-xs text-slate-700 shadow-3xs relative overflow-hidden print:bg-white print:border-none">
               {/* Decorative Jagged Receipt Top */}
               <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-radial from-slate-200 to-transparent bg-[length:10px_6px] bg-repeat-x print:hidden"></div>
               

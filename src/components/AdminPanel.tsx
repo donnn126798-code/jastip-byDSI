@@ -8,7 +8,7 @@ import {
   TrendingUp, ShoppingBag, Users, DollarSign, Package, Trash2, RotateCcw,
   Edit3, Plus, RefreshCw, BarChart2, ShieldAlert, LogOut, Check, Search, Filter,
   Download, Eye, MessageSquare, CheckSquare, FileText, CheckCircle, ExternalLink, Calendar, Info,
-  Receipt, Printer, Copy, Database
+  Receipt, Printer, Copy, Database, UploadCloud, Image, X
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -29,29 +29,6 @@ const ADMIN_TAB_LABELS = {
   orders: 'Reservasi Pesanan',
   testimonials: 'Ulasan Pelanggan'
 };
-
-const PRESET_IMAGES = [
-  {
-    name: 'Blush Pink Matte',
-    url: 'https://images.unsplash.com/photo-1594540453716-1681283e9fe7?auto=format&fit=crop&q=80&w=600',
-  },
-  {
-    name: 'Floral Watercolor',
-    url: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&q=80&w=600',
-  },
-  {
-    name: 'Sakura Gift Box',
-    url: 'https://images.unsplash.com/photo-1513201066733-1fda72652a1c?auto=format&fit=crop&q=80&w=600',
-  },
-  {
-    name: 'Leather Crossbody Strap',
-    url: 'https://images.unsplash.com/photo-1547949003-9792a18a2601?auto=format&fit=crop&q=80&w=600',
-  },
-  {
-    name: 'Accessory Charm Set',
-    url: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&q=80&w=600',
-  }
-];
 
 export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'testimonials'>('dashboard');
@@ -98,6 +75,36 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
   const [waModalOrder, setWaModalOrder] = useState<Order | null>(null);
   const [showInvoiceModalOrder, setShowInvoiceModalOrder] = useState<Order | null>(null);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
+  const [isInIframe, setIsInIframe] = useState(false);
+  const [copiedInvoice, setCopiedInvoice] = useState(false);
+
+  useEffect(() => {
+    try {
+      setIsInIframe(window.self !== window.top);
+    } catch (e) {
+      setIsInIframe(true);
+    }
+  }, []);
+
+  const handleCopyInvoiceTextAdmin = () => {
+    if (!showInvoiceModalOrder) return;
+    const itemsText = `${showInvoiceModalOrder.product} (x${showInvoiceModalOrder.quantity}) - Rp ${showInvoiceModalOrder.total_price.toLocaleString('id-ID')}`;
+    const txt = `📋 STRUK BELANJA JASTIP byDSI (ADMIN COPY)\n` +
+                `===============================\n` +
+                `Kode Pesanan: ${showInvoiceModalOrder.order_code}\n` +
+                `Klien: ${showInvoiceModalOrder.customer_name}\n` +
+                `Tanggal: ${new Date(showInvoiceModalOrder.created_at).toLocaleString('id-ID')}\n` +
+                `Produk: ${itemsText}\n` +
+                `Total Tagihan: Rp ${showInvoiceModalOrder.total_price.toLocaleString('id-ID')}\n` +
+                `Status Pembayaran: LUNAS (Terverifikasi)\n` +
+                `===============================`;
+    navigator.clipboard.writeText(txt);
+    setCopiedInvoice(true);
+    setTimeout(() => setCopiedInvoice(false), 2000);
+  };
+
+  // Drag and drop state for product image upload
+  const [dragActive, setDragActive] = useState(false);
 
   // Custom Confirmation Dialog State
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -203,7 +210,7 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
     setPDescription('');
     setPPrice(1150000);
     setPStock(10);
-    setPImage(PRESET_IMAGES[2].url);
+    setPImage('');
     setProductFormOpen(true);
   };
 
@@ -801,20 +808,99 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
                     </div>
 
                     <div className="space-y-4">
+                      {/* Image Upload/URL area */}
                       <div>
-                        <label className="text-[10px] uppercase font-bold tracking-widest text-slate-404 block mb-1">Pilihan Gambar Contoh (Klik untuk Autocomplete)</label>
-                        <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-pink-50 p-2 rounded-xl bg-white">
-                          {PRESET_IMAGES.map((img, idx) => (
-                            <button
-                              id={`img-preset-${idx}`}
-                              key={idx}
-                              type="button"
-                              onClick={() => setPImage(img.url)}
-                              className={`p-2 border rounded-lg text-[10px] font-semibold tracking-wide text-left hover:bg-pink-50 transition-all cursor-pointer truncate ${pImage === img.url ? 'border-pink-300 bg-pink-50/40 text-pink-600' : 'border-slate-100 text-slate-500'}`}
-                            >
-                              Gambar: {img.name}
-                            </button>
-                          ))}
+                        <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">
+                          Gambar Produk (File / URL)
+                        </label>
+                        
+                        {/* Drag and Drop Box or Active Preview */}
+                        {pImage ? (
+                          <div className="relative border border-pink-100 rounded-2xl overflow-hidden bg-white group shadow-xs">
+                            <img 
+                              src={pImage} 
+                              alt="Pratinjau Produk" 
+                              className="w-full h-36 object-cover" 
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1594540453716-1681283e9fe7?auto=format&fit=crop&q=80&w=300';
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              {/* Remove image button */}
+                              <button
+                                type="button"
+                                onClick={() => setPImage('')}
+                                className="p-2 bg-white/90 hover:bg-white text-rose-600 rounded-full shadow-lg transition-transform hover:scale-105 cursor-pointer"
+                                title="Hapus Gambar"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="absolute bottom-2 left-2 bg-slate-900/60 backdrop-blur-xs text-[9px] text-white px-2 py-0.5 rounded font-mono">
+                              {pImage.startsWith('data:') ? '📌 FILE LOKAL' : '🌐 URL EKSTERNAL'}
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+                            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                            onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setDragActive(false);
+                              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                                const file = e.dataTransfer.files[0];
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  if (typeof reader.result === 'string') setPImage(reader.result);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all duration-200 cursor-pointer ${
+                              dragActive 
+                                ? 'border-pink-400 bg-pink-50/40' 
+                                : 'border-slate-200 bg-white hover:bg-slate-50/50'
+                            }`}
+                            onClick={() => document.getElementById('product-image-uploader')?.click()}
+                          >
+                            <input
+                              id="product-image-uploader"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    if (typeof reader.result === 'string') setPImage(reader.result);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="p-2.5 bg-pink-50 rounded-full text-pink-500">
+                                <UploadCloud className="w-5 h-5 animate-pulse" />
+                              </div>
+                              <span className="text-[11px] font-bold text-slate-700">Tarik gambar ke sini atau klik untuk pilih file</span>
+                              <span className="text-[9px] text-slate-400 font-light">Format JPG/PNG/WEBP (File hasil unduhan Anda)</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Traditional URL Paste field as fallback */}
+                        <div className="mt-2.5">
+                          <label className="text-[9px] text-slate-400 block mb-1 font-semibold tracking-wide">Atau masukkan URL Gambar jika sudah ter-host:</label>
+                          <input
+                            id="admin-p-image"
+                            type="text"
+                            placeholder="https://images.unsplash.com/example.jpg"
+                            className="w-full bg-white border border-slate-100 text-[11px] rounded-xl p-2.5 text-slate-705"
+                            value={pImage.startsWith('data:') ? '' : pImage}
+                            onChange={(e) => setPImage(e.target.value)}
+                          />
                         </div>
                       </div>
 
@@ -822,7 +908,7 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
                         <label className="text-[10px] uppercase font-bold tracking-widest text-slate-404 block mb-1">Deskripsi & Cerita Produk</label>
                         <textarea
                           id="admin-p-description"
-                          rows={4}
+                          rows={3}
                           placeholder="Tulis deskripsi mewah dan cerita estetik mengenai produk tumbler ini..."
                           className="w-full bg-white border border-slate-100 text-xs rounded-xl p-3 text-slate-705"
                           value={pDescription}
@@ -1421,24 +1507,25 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
 
       {/* MODAL: ADMIN ELEGAN E-STRUK BELANJA & INVOICE */}
       {showInvoiceModalOrder && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in print:bg-white print:p-0 print:absolute print:inset-0">
-          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md border border-slate-100 shadow-2xl relative space-y-6 animate-scale-up print:border-none print:shadow-none print:p-0">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in print:bg-white print:p-0 print:absolute print:inset-0 font-sans">
+          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md border border-slate-100 shadow-2xl relative space-y-4 animate-scale-up print:border-none print:shadow-none print:p-0">
             {/* Header Actions */}
             <div className="flex justify-between items-center pb-3 border-b border-rose-50 print:hidden">
-              <div className="text-left">
+              <div className="text-left font-sans">
                 <span className="text-[9px] tracking-widest font-extrabold text-pink-500 uppercase font-mono font-bold">Boutique Receipt Engine</span>
                 <h3 className="text-sm font-bold text-slate-800">Pratinjau Struk untuk Admin</h3>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 font-sans">
                 <button
                   id="print-admin-struk-btn"
                   type="button"
                   onClick={() => {
-                    window.print();
+                    const printUrl = `/api/orders/print/${showInvoiceModalOrder.order_code}`;
+                    window.open(printUrl, '_blank');
                   }}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-100/50 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-3xs hover:shadow-2xs"
                 >
-                  <Printer className="w-3.5 h-3.5" /> Cetak
+                  <Printer className="w-3.5 h-3.5" /> Cetak / PDF
                 </button>
                 <button
                   id="close-admin-struk-btn"
@@ -1451,8 +1538,9 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
               </div>
             </div>
 
+
             {/* Receipt Thermal/Paper Visual Representation */}
-            <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 font-mono text-xs text-slate-700 shadow-3xs relative overflow-hidden print:bg-white print:border-none">
+            <div className="print-receipt-container bg-slate-50 border border-slate-200/60 rounded-2xl p-5 font-mono text-xs text-slate-700 shadow-3xs relative overflow-hidden print:bg-white print:border-none">
               {/* Decorative Jagged Receipt Top */}
               <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-radial from-slate-200 to-transparent bg-[length:10px_6px] bg-repeat-x print:hidden"></div>
               

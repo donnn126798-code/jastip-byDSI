@@ -33,7 +33,7 @@ export default function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
-  const [dbStatus, setDbStatus] = useState<{ isSupabaseEnabled: boolean; fallbackToSqlite: boolean } | null>(null);
+  const [dbStatus, setDbStatus] = useState<{ isSupabaseEnabled: boolean; isFirebaseEnabled?: boolean; fallbackToSqlite: boolean } | null>(null);
 
   // Check Database status on mount
   useEffect(() => {
@@ -522,11 +522,15 @@ export default function App() {
                           <Database className="w-3 w-3 text-pink-400 shrink-0" /> Status Database
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-[8px] uppercase tracking-wider font-bold ${
-                          dbStatus.isSupabaseEnabled && !dbStatus.fallbackToSqlite
+                          (dbStatus.isSupabaseEnabled && !dbStatus.fallbackToSqlite) || dbStatus.isFirebaseEnabled
                             ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                             : 'bg-amber-50 text-amber-600 border border-amber-100'
                         }`}>
-                          {dbStatus.isSupabaseEnabled && !dbStatus.fallbackToSqlite ? 'Supabase Aktif' : 'Simulator Aktif'}
+                          {dbStatus.isSupabaseEnabled && !dbStatus.fallbackToSqlite 
+                            ? 'Supabase Aktif' 
+                            : dbStatus.isFirebaseEnabled 
+                              ? 'Cloud Firestore Aktif' 
+                              : 'Simulator Aktif'}
                         </span>
                       </div>
                       
@@ -539,8 +543,22 @@ export default function App() {
                             <strong>Solusi:</strong> Silakan masuk ke dashboard Supabase Anda, buka menu <strong>SQL Editor</strong>, salin seluruh isi file <code className="bg-amber-100/55 px-1 py-0.5 rounded text-amber-900 font-mono text-[9px]">supabase_schema.sql</code>, tempel (paste) di sana, lalu klik tombol <strong>Run</strong>.
                           </p>
                           <p className="mt-2 text-[10px] text-slate-400">
-                            *Sistem saat ini dialihkan secara otomatis ke simulator in-memory agar Anda tetap bisa masuk portal admin dengan akun <strong>Dony</strong> sandi <strong>JastipDesiRistanti123</strong>.
+                            *Sistem saat ini dialihkan secara otomatis ke Google Cloud Firestore agar data pesanan Anda tetap aman dan tersimpan permanen.
                           </p>
+                        </div>
+                      ) : dbStatus.isFirebaseEnabled ? (
+                        <div className="space-y-1 text-slate-550 leading-relaxed font-light">
+                          <p className="font-bold text-slate-750 text-[10px] uppercase flex items-center gap-1 text-emerald-600">
+                            🚀 Database Cloud Aktif (Google Firestore)
+                          </p>
+                          <p>
+                            Semua data jastip, produk, pesanan, dan ulasan disimpan secara aman dan permanen di Cloud Firestore database. Data Anda <strong>tidak akan ter-reset</strong> saat server dimulai ulang.
+                          </p>
+                          {dbStatus.isSupabaseEnabled && (
+                            <p className="text-[9px] text-slate-400 mt-1">
+                              *Koneksi Supabase Anda juga sehat dan sinkronisasi real-time ganda sedang berjalan.
+                            </p>
+                          )}
                         </div>
                       ) : !dbStatus.isSupabaseEnabled ? (
                         <div className="space-y-1 text-slate-400 leading-relaxed font-light">

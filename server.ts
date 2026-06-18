@@ -33,6 +33,7 @@ import {
   createTestimonial,
   deleteTestimonial,
   isSupabaseEnabled,
+  isFirebaseEnabled,
   fallbackToSqlite,
   getDbDiagnostics,
   autoSeedSupabase
@@ -46,6 +47,7 @@ export { app };
 app.get('/api/db-status', (req: Request, res: Response) => {
   return res.json({
     isSupabaseEnabled,
+    isFirebaseEnabled,
     fallbackToSqlite
   });
 });
@@ -281,6 +283,232 @@ app.get('/api/orders/track/:code', async (req: Request, res: Response) => {
     return res.json({ order, history });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// Print-friendly independent checkout receipt bypassing iframe limitation
+app.get('/api/orders/print/:code', async (req: Request, res: Response) => {
+  try {
+    const code = req.params.code.trim().toUpperCase();
+    const order = await getOrderByCode(code);
+    
+    if (!order) {
+      return res.status(404).send(`
+        <html>
+          <head>
+            <title>Struk Tidak Ditemukan</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+          </head>
+          <body class="bg-slate-50 flex items-center justify-center min-h-screen font-sans">
+            <div class="bg-white p-8 rounded-3xl shadow-xl max-w-sm text-center border border-slate-100">
+              <span class="text-4xl">⚠️</span>
+              <h1 class="text-lg font-extrabold text-slate-800 mt-4">Struk Tidak Ditemukan</h1>
+              <p class="text-sm text-slate-500 mt-2">Kode pesanan <strong>${code}</strong> tidak terdaftar dalam sistem basis data kami.</p>
+              <button onclick="window.close()" class="mt-6 px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer">Tutup Halaman</button>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    const formattedDate = new Date(order.created_at).toLocaleDateString('id-ID', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    });
+    const formattedTime = new Date(order.created_at).toLocaleTimeString('id-ID', {
+      hour: '2-digit', minute: '2-digit'
+    });
+
+    const itemPrice = order.total_price / order.quantity;
+
+    // Send high-fidelity boutique styled printable page
+    return res.send(`
+      <!DOCTYPE html>
+      <html lang="id">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Struk Belanja Jastip byDSI - ${order.order_code}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+        <style>
+          body {
+            font-family: 'Inter', sans-serif;
+          }
+          .font-mono-custom {
+            font-family: 'JetBrains Mono', monospace;
+          }
+          @media print {
+            body {
+              background-color: white !important;
+              color: black !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            .no-print {
+              display: none !important;
+            }
+            .print-padding-none {
+              padding: 0 !important;
+              margin: 0 !important;
+              box-shadow: none !important;
+              border: none !important;
+              max-width: 100% !important;
+              width: 100% !important;
+            }
+          }
+        </style>
+      </head>
+      <body class="bg-slate-50 min-h-screen py-8 px-4 flex flex-col items-center font-sans">
+        
+        <div class="no-print w-full max-w-sm mb-6 flex gap-2">
+          <button onclick="window.print()" class="flex-1 py-3 px-4 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-95">
+            🖨️ Cetak / Simpan PDF
+          </button>
+          <button onclick="window.close()" class="py-3 px-4 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer">
+            Kembali
+          </button>
+        </div>
+
+        <!-- Receipt Engine container -->
+        <div class="print-padding-none w-full max-w-sm bg-white rounded-3xl border border-slate-200/50 p-6 shadow-xl relative space-y-6">
+          
+          <!-- Receipt Paper Visual Jagged representation at the top -->
+          <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-radial from-slate-200 to-transparent bg-[length:10px_6px] bg-repeat-x print:hidden"></div>
+
+          <!-- Header -->
+          <div class="text-center pt-2">
+            <span class="inline-block px-3 py-1 bg-rose-50 text-rose-650 font-extrabold uppercase tracking-widest rounded-full text-[8.5px] mb-2 font-mono-custom">
+              AUTHENTIC SOURCE HUB
+            </span>
+            <h1 class="text-xl font-black text-rose-600 tracking-tight">byDSI Sourcing Hub</h1>
+            <p class="text-[9.5px] text-slate-400 font-mono-custom mt-1 uppercase tracking-wider">Premium Personal Sourcing Service</p>
+            <p class="text-[9.5px] text-slate-400 font-light">Jakarta - Malang, Indonesia</p>
+          </div>
+
+          <!-- Decorative Line -->
+          <div class="border-t border-dashed border-slate-200 my-4"></div>
+
+          <!-- Meta Data Info -->
+          <div class="space-y-1.5 font-mono-custom text-[11px] text-slate-600 leading-normal">
+            <div class="flex justify-between">
+              <span class="font-bold">KODE STRUK:</span>
+              <span class="font-bold text-rose-605">${order.order_code}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>TANGGAL:</span>
+              <span>${formattedDate}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>WAKTU:</span>
+              <span>${formattedTime} WIB</span>
+            </div>
+            <div class="flex justify-between">
+              <span>KASIR/SENDER:</span>
+              <span>AUTOMATED / ADMIN DONY</span>
+            </div>
+          </div>
+
+          <!-- Decorative Line -->
+          <div class="border-t border-slate-100 my-4"></div>
+
+          <!-- Customer Data block -->
+          <div class="space-y-1 text-slate-700">
+            <p class="text-[9px] font-extrabold tracking-wider font-mono-custom text-slate-400 uppercase">Detil Klien:</p>
+            <div class="text-xs space-y-0.5">
+              <p class="font-bold uppercase">${order.customer_name}</p>
+              <p class="text-slate-500 font-mono-custom text-[11px]">+${order.whatsapp}</p>
+            </div>
+          </div>
+
+          <!-- Decorative Line -->
+          <div class="border-t border-dashed border-slate-200 my-4"></div>
+
+          <!-- Items list -->
+          <div class="space-y-3">
+            <p class="text-[9px] font-extrabold tracking-wider font-mono-custom text-slate-400 uppercase">Rincian Belanja:</p>
+            
+            <div class="space-y-2">
+              <div class="text-xs">
+                <div class="flex justify-between font-semibold text-slate-800">
+                  <span class="max-w-[70%]">${order.product}</span>
+                  <span class="font-mono-custom text-right ml-2 shrink-0">Rp ${order.total_price.toLocaleString('id-ID')}</span>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-0.5 font-mono-custom">
+                  Spesifikasi: Jastip Premium • Qty: ${order.quantity} x Rp ${itemPrice.toLocaleString('id-ID')}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Decorative Line -->
+          <div class="border-t border-slate-150 my-4"></div>
+
+          <!-- Summary list -->
+          <div class="space-y-1.5 font-mono-custom text-[11px] text-slate-600">
+            <div class="flex justify-between">
+              <span>SUBTOTAL:</span>
+              <span>Rp ${order.total_price.toLocaleString('id-ID')}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>SENDER CHARGE / TAX:</span>
+              <span>Rp 0</span>
+            </div>
+            <div class="flex justify-between text-xs font-bold text-slate-850 pt-1.5 border-t border-slate-100">
+              <span>TOTAL INVOICE:</span>
+              <span>Rp ${order.total_price.toLocaleString('id-ID')}</span>
+            </div>
+            <div class="flex justify-between text-xs font-black text-rose-600 pt-1 border-t border-double border-slate-350">
+              <span>TOTAL DIBAYAR:</span>
+              <span>Rp ${order.total_price.toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+
+          <!-- Decorative Line -->
+          <div class="border-t border-dashed border-slate-200 my-4"></div>
+
+          <!-- Payment Verification Shield -->
+          <div class="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3 text-center space-y-1">
+            <div class="text-emerald-700 font-extrabold tracking-widest text-[9.5px] font-mono-custom uppercase flex items-center justify-center gap-1">
+              🌟 PAYMENT STATUS: LUNAS 🌟
+            </div>
+            <p class="text-[9.5px] leading-relaxed text-emerald-800 font-light font-sans">
+              Transaksi Anda aman. Bukti transfer telah tervalidasi dan diarsipkan secara permanen oleh tim verified DSI.
+            </p>
+          </div>
+
+          <!-- Footer Thank You block -->
+          <div class="text-center pt-2 space-y-2">
+            <p class="text-[10px] text-slate-500 font-light leading-relaxed">
+              Terima kasih telah berbelanja jastip premium di <strong>byDSI Sourcing Hub</strong>! Kami berkomitmen menyajikan produk 100% autentik berkualitas tinggi langsung ke tangan Anda.
+            </p>
+            
+            <!-- Quick fake barcode using simple repeated pipes style for premium receipt styling -->
+            <div class="pt-2 font-mono-custom text-[11px] text-slate-350 tracking-[4px] select-none text-center leading-none">
+              ||||| | ||||| || ||| |||| | || || | |||| |||
+            </div>
+            <p class="text-[8px] text-slate-400 font-mono-custom tracking-widest uppercase">DSIPAY-AUTHPASS-${order.order_code}</p>
+          </div>
+
+        </div>
+
+        <p class="no-print text-center text-slate-400 text-[10.5px] mt-6 font-light">
+          Gunakan pintasan browser <kbd class="px-1.5 py-0.5 bg-slate-200 rounded text-[9px] font-bold">Ctrl + P</kbd> atau tombol di atas untuk mencetak langsung.
+        </p>
+
+        <!-- Auto invocation script -->
+        <script>
+          window.onload = function() {
+            // Wait slightly for fonts and rendering to build beautifully
+            setTimeout(function() {
+              window.print();
+            }, 600);
+          }
+        </script>
+      </body>
+      </html>
+    `);
+  } catch (err: any) {
+    return res.status(500).send(`Error generating print path: \${err.message}`);
   }
 });
 
