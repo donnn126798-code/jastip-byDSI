@@ -63,9 +63,10 @@ app.get('/api/db-diagnostics', async (req: Request, res: Response) => {
 
 app.post('/api/db-seed', async (req: Request, res: Response) => {
   try {
-    await autoSeedSupabase();
+    const force = req.query.force === 'true' || req.body?.force === true;
+    await autoSeedSupabase(force);
     const diag = await getDbDiagnostics();
-    return res.json({ success: true, message: 'Seeding completed successfully', diagnostics: diag });
+    return res.json({ success: true, message: force ? 'Database forced sync completed' : 'Seeding completed successfully', diagnostics: diag });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

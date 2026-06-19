@@ -48,7 +48,42 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [dbStatus, setDbStatus] = useState<{ isSupabaseEnabled: boolean; fallbackToSqlite: boolean } | null>(null);
+  const [dbStatus, setDbStatus] = useState<{ isSupabaseEnabled: boolean; isFirebaseEnabled?: boolean; fallbackToSqlite: boolean } | null>(null);
+  const [syncingDb, setSyncingDb] = useState(false);
+  const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null);
+
+  const handleForceDbSync = async () => {
+    if (!window.confirm('PERINGATAN SINKRONISASI DATABASE:\nTindakan ini akan menghapus semua ulasan, katalog produk lama, pesanan jastip, dan riwayat pelacakan (tracking) yang tersimpan di database cloud (Cloud Firestore/Supabase), kemudian menggantinya dengan catalog data awal yang baru & bersih sesuai isi kode program saat ini di AI Studio.\n\nApakah Anda yakin ingin melakukan pengaturan ulang penuh dan sinkronisasi data sekarang?')) {
+      return;
+    }
+
+    setSyncingDb(true);
+    setSyncSuccessMsg(null);
+    setErrorMsg(null);
+
+    try {
+      const res = await fetch('/api/db-seed?force=true', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ force: true })
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.error || 'Server error during synchronization.');
+      }
+
+      setSyncSuccessMsg('Sukses! Database cloud Anda telah dibersihkan dan diselaraskan penuh sesuai data catalog kode default AI Studio.');
+      await loadAllData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Gagal melakukan sinkronisasi database.');
+    } finally {
+      setSyncingDb(false);
+    }
+  };
 
   // Product Modals / Forms
   const [productFormOpen, setProductFormOpen] = useState(false);
@@ -704,6 +739,80 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              {/* Sistem Cloud & Sinkronisasi Database */}
+              <div className="bg-white border border-pink-50 rounded-2xl p-6 shadow-sm">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-pink-50 pb-4 mb-4">
+                  <div>
+                    <h4 className="text-sm font-bold tracking-widest uppercase text-slate-800 flex items-center gap-1.5">
+                      <Database className="w-4 h-4 text-pink-400 shrink-0" /> Sistem Cloud & Sinkronisasi Database
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Kelola sinkronisasi real-time antara program Anda di AI Studio dan server basis data cloud utama (Firestore / Supabase)
+                    </p>
+                  </div>
+                  <div>
+                    <span className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold inline-block ${
+                      dbStatus && ((dbStatus.isSupabaseEnabled && !dbStatus.fallbackToSqlite) || dbStatus.isFirebaseEnabled)
+                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                        : 'bg-amber-50 text-amber-600 border border-amber-100'
+                    }`}>
+                      {dbStatus 
+                        ? (dbStatus.isSupabaseEnabled && !dbStatus.fallbackToSqlite 
+                            ? 'Supabase Cloud Aktif' 
+                            : dbStatus.isFirebaseEnabled 
+                              ? 'Google Firestore Aktif' 
+                              : 'Mode Simulator In-Memory')
+                        : 'Mendapatkan status...'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                  <div className="space-y-4 text-xs text-slate-505 leading-relaxed font-light">
+                    <p>
+                      Ketika pertama kali meluncurkan web jastip yang sudah dideploy ke server produksi (seperti Cloud Run, Vercel, dll.), basis data cloud mungkin dalam kondisi kosong atau berisi data lama.
+                    </p>
+                    <p>
+                      Tombol <strong>Paksa Sinkronisasi Catalog</strong> di sebelah kanan memungkinkan Anda untuk menghapus seluruh data sisa ulasan, transaksi, catalog produk lama, lalu mengunggah kembali secara utuh katalog default jastip murni (seperti Stanley, Limited Edition) dari kode AI Studio agar tampilan web deploy sinkron 100% dan bebas error JSON parsing.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-pink-50 bg-pink-100/10 flex flex-col justify-between h-full space-y-4">
+                    <div>
+                      <h5 className="text-xs font-bold text-slate-705 uppercase tracking-wider mb-1">Aksi Penyelarasan Sistem</h5>
+                      <p className="text-[11px] text-slate-500 leading-normal font-light">
+                        Mengatur ulang basis data dan mengisi ulang dengan data katalog produk murni default dari server AI Studio.
+                      </p>
+                    </div>
+
+                    {syncSuccessMsg && (
+                      <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg p-3 text-xs font-medium">
+                        {syncSuccessMsg}
+                      </div>
+                    )}
+
+                    <button
+                      id="admin-force-sync-db-btn"
+                      onClick={handleForceDbSync}
+                      disabled={syncingDb}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-900 font-bold tracking-wider text-xs uppercase text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {syncingDb ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Menyelaraskan Sistem Cloud...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          Paksa Sinkronisasi Catalog
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

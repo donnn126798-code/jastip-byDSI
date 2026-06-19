@@ -1157,21 +1157,45 @@ export async function deleteTestimonial(id: string): Promise<boolean> {
 }
 
 /**
- * AUTO SEED DATABASE (Both Supabase and Firebase if empty)
+ * HELPER TO CLEAR FIRESTORE COLLECTION
  */
-export async function autoSeedSupabase() {
-  console.log('[DSI Database] Menguji apakah database cloud memerlukan seeding otomatis... 🚀');
+async function clearFirestoreCollection(collectionName: string) {
+  if (!db) return;
+  try {
+    const colRef = collection(db, collectionName);
+    const snap = await getDocs(colRef);
+    for (const docCheck of snap.docs) {
+      await deleteDoc(doc(db, collectionName, docCheck.id));
+    }
+    console.log(`[DSI Database - Firebase] Cleared collection: ${collectionName}`);
+  } catch (err: any) {
+    console.error(`[DSI Database - Firebase] Error clearing collection ${collectionName}:`, err.message || err);
+  }
+}
+
+/**
+ * AUTO SEED DATABASE (Both Supabase and Firebase if empty or forced reset)
+ */
+export async function autoSeedSupabase(force = false) {
+  console.log(`[DSI Database] Menguji apakah database cloud memerlukan seeding otomatis (force=${force})... 🚀`);
   
   // If we have configurations, temporarily assume enabled to perform active verification query
   if (hasSupabaseConfig && supabase) {
     isSupabaseEnabled = true;
   }
 
-  // Active cleanup of specific test data on startup has been removed to prevent resetting user data on restart.
-
-  // 1. Seed Supabase if active & empty
+  // 1. Seed Supabase if active
   if (isSupabaseEnabled && supabase) {
     try {
+      if (force) {
+        console.log('[DSI Database] Force parameter detected! Clearing old data in Supabase tables...');
+        await supabase.from('admins').delete().neq('id', 'non-existent');
+        await supabase.from('products').delete().neq('id', 'non-existent');
+        await supabase.from('orders').delete().neq('id', 'non-existent');
+        await supabase.from('tracking_history').delete().neq('id', 'non-existent');
+        await supabase.from('testimonials').delete().neq('id', 'non-existent');
+      }
+
       console.log('[DSI Database] Mengecek status seed di Supabase...');
       
       // Seed admins if empty, checking if relation/table exists
@@ -1181,10 +1205,10 @@ export async function autoSeedSupabase() {
         isSupabaseEnabled = false;
         // Skip Supabase seeding since tables aren't deployed
       } else {
-        const isFreshSupabase = (!adminSnap || adminSnap.length === 0);
+        const isFreshSupabase = (!adminSnap || adminSnap.length === 0) || force;
         
         if (isFreshSupabase) {
-          console.log('[DSI Database] Basis data Supabase baru terdeteksi! Mengunggah data awal...');
+          console.log('[DSI Database] Basis data Supabase terdeteksi siap disingkronkan! Mengunggah data awal...');
           
           console.log('[DSI Database] Melakukan seed data admin awal di Supabase...');
           await supabase.from('admins').insert([
@@ -1290,10 +1314,19 @@ export async function autoSeedSupabase() {
   // 2. Seed Firebase Firestore if active & empty
   if (db) {
     try {
+      if (force) {
+        console.log('[DSI Database] Force parameter detected! Clearing old data in Firebase Firestore collections...');
+        await clearFirestoreCollection('admins');
+        await clearFirestoreCollection('products');
+        await clearFirestoreCollection('orders');
+        await clearFirestoreCollection('tracking_history');
+        await clearFirestoreCollection('testimonials');
+      }
+
       // Seed admins if empty
       const adminRef = collection(db, 'admins');
       const adminSnap = await getDocs(query(adminRef, limit(1)));
-      const isFreshFirebase = adminSnap.empty;
+      const isFreshFirebase = adminSnap.empty || force;
 
       if (isFreshFirebase) {
         console.log('[DSI Database] Basis data Firebase Firestore baru terdeteksi! Mengunggah data awal...');
@@ -1395,6 +1428,21 @@ export async function autoSeedSupabase() {
         for (const tracker of tracking_history) {
           await setDoc(doc(db, 'tracking_history', tracker.id), tracker);
         }
+
+        // Seed initial testimonial
+        console.log('[DSI Database] Melakukan seed data ulasan pelanggan awal di Firebase Firestore...');
+        const initialTestimonial = {
+          id: 'testi-001',
+          customer_name: 'Clarissa Putri',
+          comment: 'Sangat puas dengan Jastip BYDSI! Barangnya dijamin 100% original, pengemasan tebal berlipat, dan seller ramah responsif memberi informasi transit.',
+          review: 'Sangat puas dengan Jastip BYDSI! Barangnya dijamin 100% original, pengemasan tebal berlipat, dan seller ramah responsif memberi informasi transit.',
+          product_purchased: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
+          rating: 5,
+          image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150',
+          created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+        };
+        await setDoc(doc(db, 'testimonials', initialTestimonial.id), initialTestimonial);
+
         console.log('[DSI Database] Seeding database Firebase Firestore selesai!');
       } else {
         console.log('[DSI Database] Database Firebase Firestore sudah terinisialisasi sebelumnya. Melewati auto-seeding untuk mencegah reset data.');
