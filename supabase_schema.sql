@@ -1,5 +1,44 @@
--- SQL script untuk membuat tabel di Supabase SQL Editor
--- Silakan salin dan tempel (copy-paste) skrip ini ke menu SQL Editor di dashboard Supabase Anda.
+-- SPLIT/MIGRATION & FULL SETUP SCRIPT UNTUK SUPABASE SQL EDITOR
+-- -------------------------------------------------------------
+-- Dashboard Supabase -> SQL Editor -> New Query -> Tempel dan Jalankan.
+-- Script ini dirancang aman: mendukung upgrade tabel yang sudah ada 
+-- sekaligus instalasi database baru dari nol tanpa kehilangan data lama Anda.
+
+-- =============================================================
+-- [BAGIAN A] SAFELY UPGRADE EXISTING TABLES (MIGRASI AMAN)
+-- =============================================================
+
+-- 1. Pastikan kolom is_deleted ada pada tabel orders (untuk fitur hapus/pindah ke Tong Sampah)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+
+-- 2. Memperbarui Relasi agar mendukung Cascade Delete
+-- Ini MENCEGAH error constraint database ketika Anda menghapus pesanan (menghapus otomatis riwayat pelacakan terkait)
+DO $$
+BEGIN
+    -- Hapus constraint lama jika ada
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.table_constraints 
+        WHERE constraint_schema = 'public' 
+          AND table_name = 'tracking_history' 
+          AND constraint_name = 'tracking_history_order_id_fkey'
+    ) THEN
+        ALTER TABLE tracking_history DROP CONSTRAINT tracking_history_order_id_fkey;
+    END IF;
+    
+    -- Tambah kembali dengan ON DELETE CASCADE
+    ALTER TABLE tracking_history 
+    ADD CONSTRAINT tracking_history_order_id_fkey 
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Pemberitahuan: Pembaruan constraint dilewati atau sudah terkonfigurasi otomatis.';
+END $$;
+
+
+-- =============================================================
+-- [BAGIAN B] COLD-START FULL SETUP (MEMBUAT TABEL JIKA BELUM ADA)
+-- =============================================================
 
 -- 1. Membuat Tabel 'admins'
 CREATE TABLE IF NOT EXISTS admins (
@@ -54,9 +93,13 @@ CREATE TABLE IF NOT EXISTS testimonials (
   image TEXT NOT NULL
 );
 
--- 6. Memasukkan Pengguna Admin Awal (Default Password Hash)
--- Password default: JastipDesiRistanti123
--- Menggunakan hashing PBKDF2 sha512: d26914ed0dc3fc64b97f0a9f5cbea899f84852934eedee2bcab42fbe59c3cca036a44cbd935ee588b43bd7ba78f1f56860ac45330a133df1fe881c15f9ee29fe (dengan salt "jastip_bydsi_salt_2026")
+
+-- =============================================================
+-- [BAGIAN C] SEED / DATA AWAL DEFAULT (Mencegah Duplikasi)
+-- =============================================================
+
+-- 1. Memasukkan Pengguna Admin Utama (Password default: JastipDesiRistanti123)
+-- Menggunakan PBKDF2 sha512 dengan salt "jastip_bydsi_salt_2026"
 INSERT INTO admins (id, username, password_hash)
 VALUES 
   ('admin-dony', 'Dony', 'd26914ed0dc3fc64b97f0a9f5cbea899f84852934eedee2bcab42fbe59c3cca036a44cbd935ee588b43bd7ba78f1f56860ac45330a133df1fe881c15f9ee29fe'),
@@ -64,7 +107,7 @@ VALUES
   ('admin-rori', 'Rori', 'd26914ed0dc3fc64b97f0a9f5cbea899f84852934eedee2bcab42fbe59c3cca036a44cbd935ee588b43bd7ba78f1f56860ac45330a133df1fe881c15f9ee29fe')
 ON CONFLICT (username) DO NOTHING;
 
--- 7. Memasukkan Katalog Produk Awal (Opsional - Jika belum ada)
+-- 2. Memasukkan Katalog Produk Utama
 INSERT INTO products (id, name, category, description, price, stock, image)
 VALUES
   ('prod-001', 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink', 'Stanley', 'The iconic Stanley Quencher in a stunning, bright pastel matte pink finish. Your perfect companion for premium all-day hydration. Comes with the modern FlowState™ 3-way lid.', 1150000, 12, '/pastel_pink_tumbler.png'),
@@ -75,7 +118,7 @@ VALUES
   ('prod-006', 'Rose Gold Metallic Stanley Accessory Charm Set', 'Tumbler Accessories', 'Dazzle up your Stanley Quencher. Premium metallic rose-gold personalized name tag and matching silicon straw cover shaped like a beautiful pink cherry blossom blossom.', 180000, 15, '/rose_gold_charms.png')
 ON CONFLICT (id) DO NOTHING;
 
--- 8. Memasukkan Testimonial Awal (Opsional - Jika belum ada)
+-- 3. Memasukkan Testimonial Autentik Awal
 INSERT INTO testimonials (id, customer_name, review, rating, image)
 VALUES
   ('testi-001', 'Anindya Kirana', 'My pink Stanley arrived in perfect condition! The packaging was so beautiful, like unboxing a luxury designer piece. Truly reliable personal shopping service. Custom notes were handwritten too!', 5, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'),
@@ -83,13 +126,13 @@ VALUES
   ('testi-003', 'Nadia Salsabila', 'The Sakura Blossom Gift Set was the absolute perfect bridal shower gift for my best friend. The satin-lined box was stunningly luxurious. Jastip byDSI provides exceptional high-society aesthetic!', 5, 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150')
 ON CONFLICT (id) DO NOTHING;
 
--- 9. Memasukkan Pesanan Simulasi Awal (Opsional - Jika belum ada)
-INSERT INTO orders (id, order_code, customer_name, whatsapp, product, quantity, notes, total_price, status, created_at, payment_receipt, resi_number, admin_notes)
+-- 4. Memasukkan Pesanan Simulasi Berhasil
+INSERT INTO orders (id, order_code, customer_name, whatsapp, product, quantity, notes, total_price, status, created_at, payment_receipt, resi_number, admin_notes, is_deleted)
 VALUES
-  ('order-initial-01', 'BYDSI-0001', 'Clarissa Putri', '6281234567890', 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink', 1, 'Please wrap safely as a birthday surprise!', 1150000, 'In Transit', '2026-06-11T12:00:00.000Z', NULL, 'RESI-DSI-8891', 'Sudah dibungkus kado premium pink')
+  ('order-initial-01', 'BYDSI-0001', 'Clarissa Putri', '6281234567890', 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink', 1, 'Please wrap safely as a birthday surprise!', 1150000, 'In Transit', '2026-06-11T12:00:00.000Z', NULL, 'RESI-DSI-8891', 'Sudah dibungkus kado premium pink', FALSE)
 ON CONFLICT (id) DO NOTHING;
 
--- 10. Memasukkan Riwayat Pelacakan Pesanan Awal (Opsional - Jika belum ada)
+-- 5. Memasukkan Riwayat Pelacakan Terkait
 INSERT INTO tracking_history (id, order_id, status, updated_at)
 VALUES
   ('track-01', 'order-initial-01', 'Waiting for Payment', '2026-06-11T12:00:00.000Z'),
