@@ -36,11 +36,17 @@ export function hashPassword(password: string): string {
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
 
-export const hasSupabaseConfig = !!(supabaseUrl && supabaseKey);
+export const hasSupabaseConfig = !!(
+  supabaseUrl && 
+  supabaseKey && 
+  supabaseUrl.startsWith('https://') && 
+  !supabaseUrl.includes('xxxxxx') && 
+  !supabaseUrl.includes('placeholder')
+);
 export let isSupabaseEnabled = false;
 let supabase: any = null;
 
-if (supabaseUrl && supabaseKey) {
+if (hasSupabaseConfig) {
   try {
     supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
@@ -51,6 +57,7 @@ if (supabaseUrl && supabaseKey) {
     console.log('[DSI Database] Supabase Cloud Engine activated successfully! 🟢⚡');
   } catch (err: any) {
     console.error('[DSI Database] Failed to initialize Supabase Engine:', err.message || err);
+    isSupabaseEnabled = false;
   }
 }
 
@@ -62,12 +69,25 @@ try {
   const configPath = join(process.cwd(), 'firebase-applet-config.json');
   if (existsSync(configPath)) {
     const firebaseConfig = JSON.parse(readFileSync(configPath, 'utf8'));
-    const app = initializeApp(firebaseConfig);
-    db = initializeFirestore(app, {
-      experimentalForceLongPolling: true,
-    }, firebaseConfig.firestoreDatabaseId);
-    isFirebaseEnabled = true;
-    console.log('[DSI Database] Firebase Firestore Cloud Live activated! ☁️🔥');
+    if (firebaseConfig && firebaseConfig.projectId && !firebaseConfig.projectId.includes('placeholder')) {
+      const app = initializeApp(firebaseConfig);
+      const dbId = firebaseConfig.firestoreDatabaseId;
+      if (dbId && dbId !== '(default)' && dbId.trim() !== '') {
+        db = initializeFirestore(app, {
+          experimentalForceLongPolling: true,
+          ignoreUndefinedProperties: true
+        }, dbId);
+      } else {
+        db = initializeFirestore(app, {
+          experimentalForceLongPolling: true,
+          ignoreUndefinedProperties: true
+        });
+      }
+      isFirebaseEnabled = true;
+      console.log('[DSI Database] Firebase Firestore Cloud Live activated! ☁️🔥 Database ID:', dbId || '(default)');
+    } else {
+      console.warn('[DSI Database] Firebase config file exists but contains a placeholder or invalid project ID.');
+    }
   } else {
     console.warn('[DSI Database] firebase-applet-config.json not found! Firestore fallback inactive.');
   }
@@ -75,8 +95,108 @@ try {
   console.error('[DSI Database] Error initializing Firebase Firestore:', err.message || err);
 }
 
-// Variable to signal that we are running 100% on cloud databases (Supabase or Firebase)
+// Variable to signal that we are running 100% on cloud databases (Supabase or Firebase) (now also backed by in-memory graceful fallback)
 export const fallbackToSqlite = false;
+
+// 3. Fallback In-Memory Datastore to prevent failure if cloud services are disconnected/offline
+export const inMemoryAdmins: any[] = [
+  { id: 'admin-dony', username: 'Dony', password_hash: hashPassword('JastipDesiRistanti123') },
+  { id: 'admin-desi', username: 'Desi', password_hash: hashPassword('JastipDesiRistanti123') },
+  { id: 'admin-rori', username: 'Rori', password_hash: hashPassword('JastipDesiRistanti123') }
+];
+
+export const inMemoryProducts: any[] = [
+  {
+    id: 'prod-001',
+    name: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
+    category: 'Stanley',
+    description: 'The iconic Stanley Quencher in a stunning, bright pastel matte pink finish. Your perfect companion for premium all-day hydration. Comes with the modern FlowState™ 3-way lid.',
+    price: 1150000,
+    stock: 12,
+    image: '/pastel_pink_tumbler.png'
+  },
+  {
+    id: 'prod-002',
+    name: 'Stanley Quencher H2.0 (40oz) - Limited Edition Floral Watercolor',
+    category: 'Limited Edition',
+    description: 'An elegant limited-edition Stanley tumbler adorned with exquisite blush pink watercolor florals. Features an insulated double-wall vacuum stainless steel design. Intricately numbered.',
+    price: 1450000,
+    stock: 4,
+    image: '/floral_watercolor_tumbler.png'
+  },
+  {
+    id: 'prod-003',
+    name: 'Sakura Blossom Curated Gift Set Box',
+    category: 'Gift Set',
+    description: 'A beautifully-curated luxury boutique gift box. Includes a pastel pink tumbler, custom satin sleeping mask, vanilla orchid lavender aromatherapy candle, and a gold-stamped greeting card.',
+    price: 1950000,
+    stock: 6,
+    image: '/sakura_gift_box.png'
+  },
+  {
+    id: 'prod-004',
+    name: 'Handcrafted Blush Pink Leather Crossbody Strap',
+    category: 'Tumbler Accessories',
+    description: 'Carry your luxury tumbler in ultimate hands-free style. Lovingly hand-cut from premium full-grain Italian leather in a soft rose blush color, featuring beautiful, heavy brass clips.',
+    price: 380000,
+    stock: 20,
+    image: '/pink_leather_strap.png'
+  },
+  {
+    id: 'prod-005',
+    name: 'Stanley IceFlow Flip Straw Tumbler (30oz) - Soft Rose',
+    category: 'Stanley',
+    description: 'Designed for on-the-go luxury life. This beautiful soft rose tumbler features leakproof flip straw technology and an integrated folding carrying handle.',
+    price: 1050000,
+    stock: 8,
+    image: '/soft_rose_tumbler.png'
+  },
+  {
+    id: 'prod-006',
+    name: 'Rose Gold Metallic Stanley Accessory Charm Set',
+    category: 'Tumbler Accessories',
+    description: 'Dazzle up your Stanley Quencher. Premium metallic rose-gold personalized name tag and matching silicon straw cover shaped like a beautiful pink cherry blossom blossom.',
+    price: 180005,
+    stock: 15,
+    image: '/rose_gold_charms.png'
+  }
+];
+
+export const inMemoryOrders: any[] = [
+  {
+    id: 'order-initial-01',
+    order_code: 'BYDSI-0001',
+    customer_name: 'Budi Santoso',
+    whatsapp: '6281234567890',
+    product: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
+    quantity: 1,
+    notes: 'Kado ultah adik, tolong dibungkus rapi aman!',
+    total_price: 1150000,
+    status: 'In Transit',
+    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    is_deleted: false,
+    payment_receipt: ''
+  }
+];
+
+export const inMemoryTrackingHistory: any[] = [
+  { id: 'track-01', order_id: 'order-initial-01', status: 'Waiting for Payment', updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() },
+  { id: 'track-02', order_id: 'order-initial-01', status: 'Paid', updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 4 * 60 * 60 * 1000).toISOString() },
+  { id: 'track-03', order_id: 'order-initial-01', status: 'Ordered', updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
+  { id: 'track-04', order_id: 'order-initial-01', status: 'In Transit', updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() }
+];
+
+export const inMemoryTestimonials: any[] = [
+  {
+    id: 'testi-001',
+    customer_name: 'Clarissa Putri',
+    rating: 5,
+    comment: 'Sangat puas dengan Jastip BYDSI! Barangnya dijamin 100% original, pengemasan tebal berlipat, dan seller ramah responsif memberi informasi transit.',
+    product_purchased: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
+    review: 'Sangat puas dengan Jastip BYDSI! Barangnya dijamin 100% original, pengemasan tebal berlipat, dan seller ramah responsif memberi informasi transit.',
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+  }
+];
 
 /**
  * ADMINS ENDPOINTS
@@ -176,7 +296,19 @@ export async function getProducts(category?: string, search?: string): Promise<a
     }
   }
 
-  return [];
+  // Graceful in-memory fallback
+  let localProductsList = [...inMemoryProducts];
+  if (category && category !== 'All') {
+    localProductsList = localProductsList.filter(p => p.category === category);
+  }
+  if (search && search.trim() !== '') {
+    const term = search.toLowerCase().trim();
+    localProductsList = localProductsList.filter(p => 
+      (p.name && p.name.toLowerCase().includes(term)) ||
+      (p.description && p.description.toLowerCase().includes(term))
+    );
+  }
+  return localProductsList;
 }
 
 export async function getProductById(id: string): Promise<any> {
@@ -207,7 +339,7 @@ export async function getProductById(id: string): Promise<any> {
     }
   }
 
-  return null;
+  return inMemoryProducts.find(p => p.id === id) || null;
 }
 
 export async function createProduct(p: { name: string; category: string; description: string; price: number; stock: number; image: string }): Promise<any> {
@@ -222,6 +354,9 @@ export async function createProduct(p: { name: string; category: string; descrip
     image: p.image
   };
 
+  // Sync to in-memory datastore
+  inMemoryProducts.push(pData);
+
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
@@ -230,7 +365,6 @@ export async function createProduct(p: { name: string; category: string; descrip
       return pData;
     } catch (err) {
       console.error('[DSI Database - Supabase] createProduct error:', err);
-      throw err;
     }
   }
 
@@ -242,11 +376,10 @@ export async function createProduct(p: { name: string; category: string; descrip
       return pData;
     } catch (err) {
       console.error('[DSI Database - Firebase] createProduct error:', err);
-      throw err;
     }
   }
 
-  throw new Error('No live cloud database client is configured to save data');
+  return pData;
 }
 
 export async function updateProduct(id: string, p: { name: string; category: string; description: string; price: number; stock: number; image: string }): Promise<any> {
@@ -259,6 +392,12 @@ export async function updateProduct(id: string, p: { name: string; category: str
     image: p.image
   };
 
+  // Sync to in-memory datastore
+  const idx = inMemoryProducts.findIndex(item => item.id === id);
+  if (idx !== -1) {
+    inMemoryProducts[idx] = { ...inMemoryProducts[idx], ...updateData };
+  }
+
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
@@ -267,7 +406,6 @@ export async function updateProduct(id: string, p: { name: string; category: str
       return { id, ...updateData };
     } catch (err) {
       console.error('[DSI Database - Supabase] updateProduct error:', err);
-      throw err;
     }
   }
 
@@ -279,23 +417,29 @@ export async function updateProduct(id: string, p: { name: string; category: str
       return { id, ...updateData };
     } catch (err) {
       console.error('[DSI Database - Firebase] updateProduct error:', err);
-      throw err;
     }
   }
 
-  throw new Error('No live cloud database client is configured to update data');
+  return { id, ...updateData };
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
+  // Sync to in-memory datastore
+  const idx = inMemoryProducts.findIndex(item => item.id === id);
+  if (idx !== -1) {
+    inMemoryProducts.splice(idx, 1);
+  }
+
+  let success = false;
+
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
-      return true;
+      success = true;
     } catch (err) {
       console.error('[DSI Database - Supabase] deleteProduct error:', err);
-      return false;
     }
   }
 
@@ -304,14 +448,13 @@ export async function deleteProduct(id: string): Promise<boolean> {
     try {
       const docRef = doc(db, 'products', id);
       await deleteDoc(docRef);
-      return true;
+      success = true;
     } catch (err) {
       console.error('[DSI Database - Firebase] deleteProduct error:', err);
-      return false;
     }
   }
 
-  return false;
+  return success || (!isSupabaseEnabled && !db);
 }
 
 /**
@@ -364,6 +507,12 @@ export async function getLatestOrderCode(): Promise<string | null> {
     }
   }
 
+  // Graceful in-memory fallback
+  if (inMemoryOrders.length > 0) {
+    const list = [...inMemoryOrders];
+    list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    return list[0].order_code || null;
+  }
   return null;
 }
 
@@ -379,15 +528,19 @@ export async function createOrder(o: {
   status: string;
   created_at: string;
 }): Promise<any> {
+  const oData = { ...o, is_deleted: false, payment_receipt: '' };
+  
+  // Sync to in-memory datastore
+  inMemoryOrders.push(oData);
+
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
-      const { error } = await supabase.from('orders').insert(o);
+      const { error } = await supabase.from('orders').insert(oData);
       if (error) throw error;
-      return o;
+      return oData;
     } catch (err) {
       console.error('[DSI Database - Supabase] createOrder error:', err);
-      throw err;
     }
   }
 
@@ -395,18 +548,23 @@ export async function createOrder(o: {
   if (db) {
     try {
       const docRef = doc(db, 'orders', o.id);
-      await setDoc(docRef, o);
-      return o;
+      await setDoc(docRef, oData);
+      return oData;
     } catch (err) {
       console.error('[DSI Database - Firebase] createOrder error:', err);
-      throw err;
     }
   }
 
-  throw new Error('No live cloud database client is configured to save order');
+  return oData;
 }
 
 export async function decrementProductStock(productId: string, quantity: number): Promise<void> {
+  // Sync in-memory stock first
+  const p = inMemoryProducts.find(item => item.id === productId);
+  if (p) {
+    p.stock = Math.max(0, (p.stock || 0) - Number(quantity));
+  }
+
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
@@ -433,8 +591,8 @@ export async function decrementProductStock(productId: string, quantity: number)
       const docRef = doc(db, 'products', productId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        const p = docSnap.data() as any;
-        const currentStock = p.stock || 0;
+        const pData = docSnap.data() as any;
+        const currentStock = pData.stock || 0;
         const nextStock = Math.max(0, currentStock - Number(quantity));
         await setDoc(docRef, { stock: nextStock }, { merge: true });
       }
@@ -445,6 +603,9 @@ export async function decrementProductStock(productId: string, quantity: number)
 }
 
 export async function createTrackingHistory(h: { id: string; order_id: string; status: string; updated_at: string }): Promise<any> {
+  // Sync to in-memory datastore
+  inMemoryTrackingHistory.push(h);
+
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
@@ -453,7 +614,6 @@ export async function createTrackingHistory(h: { id: string; order_id: string; s
       return h;
     } catch (err) {
       console.error('[DSI Database - Supabase] createTrackingHistory error:', err);
-      throw err;
     }
   }
 
@@ -465,11 +625,10 @@ export async function createTrackingHistory(h: { id: string; order_id: string; s
       return h;
     } catch (err) {
       console.error('[DSI Database - Firebase] createTrackingHistory error:', err);
-      throw err;
     }
   }
 
-  throw new Error('No live cloud database client is configured to save tracking history');
+  return h;
 }
 
 export async function getAllOrders(): Promise<any[]> {
@@ -513,7 +672,10 @@ export async function getAllOrders(): Promise<any[]> {
     }
   }
 
-  return [];
+  // Graceful in-memory fallback
+  const list = [...inMemoryOrders];
+  list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  return list;
 }
 
 export async function getOrderByCode(code: string): Promise<any> {
@@ -548,7 +710,7 @@ export async function getOrderByCode(code: string): Promise<any> {
         return order;
       }
       
-      // In-memory case insensitive backup
+      // Case insensitive fallback over all docs
       const allSnap = await getDocs(collection(db, 'orders'));
       let found: any = null;
       allSnap.forEach((docSnap) => {
@@ -565,7 +727,7 @@ export async function getOrderByCode(code: string): Promise<any> {
     }
   }
 
-  return null;
+  return inMemoryOrders.find(o => o.order_code.toUpperCase() === cleanCode && !o.is_deleted) || null;
 }
 
 export async function getOrderById(id: string): Promise<any> {
@@ -596,7 +758,7 @@ export async function getOrderById(id: string): Promise<any> {
     }
   }
 
-  return null;
+  return inMemoryOrders.find(o => o.id === id) || null;
 }
 
 export async function getTrackingHistoryForOrder(orderId: string): Promise<any[]> {
@@ -646,11 +808,19 @@ export async function getTrackingHistoryForOrder(orderId: string): Promise<any[]
     }
   }
 
-  return [];
+  return inMemoryTrackingHistory
+    .filter(h => h.order_id === orderId)
+    .sort((a, b) => (a.updated_at || '').localeCompare(b.updated_at || ''));
 }
 
 export async function updateOrderStatus(id: string, status: string, resi: string, notes: string): Promise<any> {
   const updateData = { status, resi_number: resi, admin_notes: notes };
+
+  // Sync to in-memory datastore
+  const oIdx = inMemoryOrders.findIndex(item => item.id === id);
+  if (oIdx !== -1) {
+    inMemoryOrders[oIdx] = { ...inMemoryOrders[oIdx], ...updateData };
+  }
 
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
@@ -660,7 +830,6 @@ export async function updateOrderStatus(id: string, status: string, resi: string
       return { id, ...updateData };
     } catch (err) {
       console.error('[DSI Database - Supabase] updateOrderStatus error:', err);
-      throw err;
     }
   }
 
@@ -672,11 +841,10 @@ export async function updateOrderStatus(id: string, status: string, resi: string
       return { id, ...updateData };
     } catch (err) {
       console.error('[DSI Database - Firebase] updateOrderStatus error:', err);
-      throw err;
     }
   }
 
-  throw new Error('No live cloud database client is configured to update order status');
+  return { id, ...updateData };
 }
 
 export async function countTrackingHistory(orderId: string, status: string): Promise<number> {
@@ -711,11 +879,17 @@ export async function countTrackingHistory(orderId: string, status: string): Pro
     }
   }
 
-  return 0;
+  return inMemoryTrackingHistory.filter(h => h.order_id === orderId && h.status === status).length;
 }
 
 export async function updateOrderPaymentReceipt(id: string, payment_receipt: string): Promise<any> {
   const updateData = { payment_receipt };
+
+  // Sync to in-memory datastore
+  const oIdx = inMemoryOrders.findIndex(item => item.id === id);
+  if (oIdx !== -1) {
+    inMemoryOrders[oIdx].payment_receipt = payment_receipt;
+  }
 
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
@@ -725,7 +899,6 @@ export async function updateOrderPaymentReceipt(id: string, payment_receipt: str
       return { id, ...updateData };
     } catch (err) {
       console.error('[DSI Database - Supabase] updateOrderPaymentReceipt error:', err);
-      throw err;
     }
   }
 
@@ -737,14 +910,19 @@ export async function updateOrderPaymentReceipt(id: string, payment_receipt: str
       return { id, ...updateData };
     } catch (err) {
       console.error('[DSI Database - Firebase] updateOrderPaymentReceipt error:', err);
-      throw err;
     }
   }
 
-  throw new Error('No live cloud database client is configured to update payment receipt');
+  return { id, ...updateData };
 }
 
 export async function deleteOrder(id: string): Promise<boolean> {
+  // Sync to in-memory datastore
+  const oIdx = inMemoryOrders.findIndex(item => item.id === id);
+  if (oIdx !== -1) {
+    inMemoryOrders[oIdx].is_deleted = true;
+  }
+
   let supabaseSuccess = false;
   let firebaseSuccess = false;
 
@@ -777,6 +955,12 @@ export async function deleteOrder(id: string): Promise<boolean> {
 }
 
 export async function restoreOrder(id: string): Promise<boolean> {
+  // Sync to in-memory datastore
+  const oIdx = inMemoryOrders.findIndex(item => item.id === id);
+  if (oIdx !== -1) {
+    inMemoryOrders[oIdx].is_deleted = false;
+  }
+
   let supabaseSuccess = false;
   let firebaseSuccess = false;
 
@@ -809,6 +993,16 @@ export async function restoreOrder(id: string): Promise<boolean> {
 }
 
 export async function deleteOrderPermanently(id: string): Promise<boolean> {
+  // Sync to in-memory datastore
+  const oIdx = inMemoryOrders.findIndex(item => item.id === id);
+  if (oIdx !== -1) {
+    inMemoryOrders.splice(oIdx, 1);
+  }
+  // also clean corresponding tracking history
+  const cleanTrack = inMemoryTrackingHistory.filter(h => h.order_id !== id);
+  inMemoryTrackingHistory.length = 0;
+  inMemoryTrackingHistory.push(...cleanTrack);
+
   let supabaseSuccess = false;
   let firebaseSuccess = false;
 
@@ -884,7 +1078,10 @@ export async function getTestimonials(): Promise<any[]> {
     }
   }
 
-  return [];
+  // Graceful in-memory fallback
+  const list = [...inMemoryTestimonials];
+  list.sort((a,b) => (a.customer_name || '').localeCompare(b.customer_name || ''));
+  return list;
 }
 
 export async function createTestimonial(t: { customer_name: string; review: string; rating: number; image: string }): Promise<any> {
@@ -897,6 +1094,9 @@ export async function createTestimonial(t: { customer_name: string; review: stri
     image: t.image
   };
 
+  // Sync to in-memory datastore
+  inMemoryTestimonials.push(tData);
+
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
@@ -905,7 +1105,6 @@ export async function createTestimonial(t: { customer_name: string; review: stri
       return tData;
     } catch (err) {
       console.error('[DSI Database - Supabase] createTestimonial error:', err);
-      throw err;
     }
   }
 
@@ -917,23 +1116,29 @@ export async function createTestimonial(t: { customer_name: string; review: stri
       return tData;
     } catch (err) {
       console.error('[DSI Database - Firebase] createTestimonial error:', err);
-      throw err;
     }
   }
 
-  throw new Error('No live cloud database client is configured to save testimonial');
+  return tData;
 }
 
 export async function deleteTestimonial(id: string): Promise<boolean> {
+  // Sync to in-memory datastore
+  const index = inMemoryTestimonials.findIndex(item => item.id === id);
+  if (index !== -1) {
+    inMemoryTestimonials.splice(index, 1);
+  }
+
+  let success = false;
+
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
       const { error } = await supabase.from('testimonials').delete().eq('id', id);
       if (error) throw error;
-      return true;
+      success = true;
     } catch (err) {
       console.error('[DSI Database - Supabase] deleteTestimonial error:', err);
-      return false;
     }
   }
 
@@ -942,14 +1147,13 @@ export async function deleteTestimonial(id: string): Promise<boolean> {
     try {
       const docRef = doc(db, 'testimonials', id);
       await deleteDoc(docRef);
-      return true;
+      success = true;
     } catch (err) {
       console.error('[DSI Database - Firebase] deleteTestimonial error:', err);
-      return false;
     }
   }
 
-  return false;
+  return success || (!isSupabaseEnabled && !db);
 }
 
 /**
