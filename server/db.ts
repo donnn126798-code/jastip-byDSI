@@ -34,7 +34,7 @@ export function hashPassword(password: string): string {
 
 // 1. Initialize Supabase if credentials are provided in env (such as on Vercel)
 const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_NON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
 
 export const hasSupabaseConfig = !!(
   supabaseUrl && 
@@ -219,10 +219,49 @@ export const inMemoryTestimonials: any[] = [
   }
 ];
 
+let isSeedingInProgress = false;
+let isAlreadySeededChecked = false;
+
+export async function checkAndLazySeed() {
+  if (isAlreadySeededChecked || isSeedingInProgress) return;
+  
+  if ((isSupabaseEnabled && supabase) || db) {
+    isSeedingInProgress = true;
+    try {
+      // For Supabase
+      if (isSupabaseEnabled && supabase) {
+        console.log('[DSI Database] Mengecek status seed di Supabase secara lazy...');
+        const { data, error } = await supabase.from('products').select('id').limit(1);
+        if (!error && (!data || data.length === 0)) {
+          console.log('[DSI Database] Basis data Supabase masih kosong, memulai auto-seed...');
+          await autoSeedSupabase();
+        }
+      }
+      
+      // For Firebase
+      if (db) {
+        console.log('[DSI Database] Mengecek status seed di Firebase secara lazy...');
+        const ref = collection(db, 'products');
+        const snap = await getDocs(query(ref, limit(1)));
+        if (snap.empty) {
+          console.log('[DSI Database] Basis data Firebase masih kosong, memulai auto-seed...');
+          await autoSeedSupabase();
+        }
+      }
+      isAlreadySeededChecked = true;
+    } catch (e: any) {
+      console.error('[DSI Database] Gagal menjalankan lazy seeding:', e.message || e);
+    } finally {
+      isSeedingInProgress = false;
+    }
+  }
+}
+
 /**
  * ADMINS ENDPOINTS
  */
 export async function getAdminByUsername(username: string): Promise<any> {
+  await checkAndLazySeed();
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
@@ -263,6 +302,7 @@ export async function getAdminByUsername(username: string): Promise<any> {
  * PRODUCTS ENDPOINTS
  */
 export async function getProducts(category?: string, search?: string): Promise<any[]> {
+  await checkAndLazySeed();
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
@@ -333,6 +373,7 @@ export async function getProducts(category?: string, search?: string): Promise<a
 }
 
 export async function getProductById(id: string): Promise<any> {
+  await checkAndLazySeed();
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
@@ -653,6 +694,7 @@ export async function createTrackingHistory(h: { id: string; order_id: string; s
 }
 
 export async function getAllOrders(): Promise<any[]> {
+  await checkAndLazySeed();
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
@@ -700,6 +742,7 @@ export async function getAllOrders(): Promise<any[]> {
 }
 
 export async function getOrderByCode(code: string): Promise<any> {
+  await checkAndLazySeed();
   const cleanCode = code.toUpperCase().trim();
 
   // Try Supabase first if active
@@ -1059,6 +1102,7 @@ export async function deleteOrderPermanently(id: string): Promise<boolean> {
  * TESTIMONIALS ENDPOINTS
  */
 export async function getTestimonials(): Promise<any[]> {
+  await checkAndLazySeed();
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
