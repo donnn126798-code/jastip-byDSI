@@ -66,30 +66,51 @@ let db: any = null;
 export let isFirebaseEnabled = false;
 
 try {
+  let firebaseConfig: any = null;
   const configPath = join(process.cwd(), 'firebase-applet-config.json');
+
   if (existsSync(configPath)) {
-    const firebaseConfig = JSON.parse(readFileSync(configPath, 'utf8'));
-    if (firebaseConfig && firebaseConfig.projectId && !firebaseConfig.projectId.includes('placeholder')) {
-      const app = initializeApp(firebaseConfig);
-      const dbId = firebaseConfig.firestoreDatabaseId;
-      if (dbId && dbId !== '(default)' && dbId.trim() !== '') {
-        db = initializeFirestore(app, {
-          experimentalForceLongPolling: true,
-          ignoreUndefinedProperties: true
-        }, dbId);
-      } else {
-        db = initializeFirestore(app, {
-          experimentalForceLongPolling: true,
-          ignoreUndefinedProperties: true
-        });
-      }
-      isFirebaseEnabled = true;
-      console.log('[DSI Database] Firebase Firestore Cloud Live activated! ☁️🔥 Database ID:', dbId || '(default)');
-    } else {
-      console.warn('[DSI Database] Firebase config file exists but contains a placeholder or invalid project ID.');
+    firebaseConfig = JSON.parse(readFileSync(configPath, 'utf8'));
+  } else if (process.env.FIREBASE_CONFIG) {
+    try {
+      firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
+    } catch (e: any) {
+      console.error('[DSI Database] Failed to parse FIREBASE_CONFIG environment variable:', e.message || e);
     }
   } else {
-    console.warn('[DSI Database] firebase-applet-config.json not found! Firestore fallback inactive.');
+    // Try individual environment variables
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+    if (projectId) {
+      firebaseConfig = {
+        projectId,
+        appId: process.env.FIREBASE_APP_ID || process.env.VITE_FIREBASE_APP_ID,
+        apiKey: process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY,
+        authDomain: process.env.FIREBASE_AUTH_DOMAIN || process.env.VITE_FIREBASE_AUTH_DOMAIN,
+        firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || process.env.VITE_FIREBASE_DATABASE_ID,
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      };
+    }
+  }
+
+  if (firebaseConfig && firebaseConfig.projectId && !firebaseConfig.projectId.includes('placeholder')) {
+    const app = initializeApp(firebaseConfig);
+    const dbId = firebaseConfig.firestoreDatabaseId || firebaseConfig.databaseId || process.env.FIREBASE_DATABASE_ID || process.env.VITE_FIREBASE_DATABASE_ID;
+    if (dbId && dbId !== '(default)' && dbId.trim() !== '') {
+      db = initializeFirestore(app, {
+        experimentalForceLongPolling: true,
+        ignoreUndefinedProperties: true
+      }, dbId);
+    } else {
+      db = initializeFirestore(app, {
+        experimentalForceLongPolling: true,
+        ignoreUndefinedProperties: true
+      });
+    }
+    isFirebaseEnabled = true;
+    console.log('[DSI Database] Firebase Firestore Cloud Live activated! ☁️🔥 Database ID:', dbId || '(default)');
+  } else {
+    console.warn('[DSI Database] No valid Firebase configuration found (neither firebase-applet-config.json nor environment variables present).');
   }
 } catch (err: any) {
   console.error('[DSI Database] Error initializing Firebase Firestore:', err.message || err);
