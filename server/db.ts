@@ -231,21 +231,34 @@ export async function checkAndLazySeed() {
       // For Supabase
       if (isSupabaseEnabled && supabase) {
         console.log('[DSI Database] Mengecek status seed di Supabase secara lazy...');
-        const { data, error } = await supabase.from('products').select('id').limit(1);
-        if (!error && (!data || data.length === 0)) {
-          console.log('[DSI Database] Basis data Supabase masih kosong, memulai auto-seed...');
-          await autoSeedSupabase();
+        try {
+          const { data, error } = await supabase.from('products').select('id').limit(1);
+          if (error) {
+            console.warn('[DSI Database] Gagal query Supabase (mungkin tabel belum dibuat di SQL Editor atau RLS aktif). Menggunakan mode fallback aman...', error);
+            isSupabaseEnabled = false;
+          } else if (!data || data.length === 0) {
+            console.log('[DSI Database] Basis data Supabase masih kosong, memulai auto-seed...');
+            await autoSeedSupabase();
+          }
+        } catch (supaErr: any) {
+          console.warn('[DSI Database] Exception ketika query Supabase. Menggunakan mode fallback aman...', supaErr);
+          isSupabaseEnabled = false;
         }
       }
       
       // For Firebase
       if (db) {
         console.log('[DSI Database] Mengecek status seed di Firebase secara lazy...');
-        const ref = collection(db, 'products');
-        const snap = await getDocs(query(ref, limit(1)));
-        if (snap.empty) {
-          console.log('[DSI Database] Basis data Firebase masih kosong, memulai auto-seed...');
-          await autoSeedSupabase();
+        try {
+          const ref = collection(db, 'products');
+          const snap = await getDocs(query(ref, limit(1)));
+          if (snap.empty) {
+            console.log('[DSI Database] Basis data Firebase masih kosong, memulai auto-seed...');
+            await autoSeedSupabase();
+          }
+        } catch (fireErr: any) {
+          console.warn('[DSI Database] Gagal query Firebase (mungkin izin kurang atau config bermasalah). Menonaktifkan koneksi Firebase...', fireErr);
+          db = null;
         }
       }
       isAlreadySeededChecked = true;
@@ -271,7 +284,7 @@ export async function getAdminByUsername(username: string): Promise<any> {
         .eq('username', username);
       
       if (error) throw error;
-      return (data && data.length > 0) ? data[0] : null;
+      if (data && data.length > 0) return data[0];
     } catch (err) {
       console.error('[DSI Database - Supabase] getAdminByUsername error:', err);
     }
@@ -289,10 +302,17 @@ export async function getAdminByUsername(username: string): Promise<any> {
           found = { id: docSnap.id, ...d };
         }
       });
-      return found;
+      if (found) return found;
     } catch (err) {
       console.error('[DSI Database - Firebase] getAdminByUsername error:', err);
     }
+  }
+
+  // Graceful local memory fallback
+  const localAdmin = inMemoryAdmins.find(a => a.username.toLowerCase() === username.toLowerCase());
+  if (localAdmin) {
+    console.log('[DSI Database] Admin berhasil login menggunakan fallback in-memory schema:', username);
+    return localAdmin;
   }
 
   return null;
@@ -321,7 +341,9 @@ export async function getProducts(category?: string, search?: string): Promise<a
           (p.description && p.description.toLowerCase().includes(term))
         );
       }
-      return products;
+      if (products.length > 0) {
+        return products;
+      }
     } catch (err) {
       console.error('[DSI Database - Supabase] getProducts error:', err);
     }
@@ -344,14 +366,17 @@ export async function getProducts(category?: string, search?: string): Promise<a
         products.push({ id: docSnap.id, ...docSnap.data() });
       });
 
+      let filteredProducts = products;
       if (search && search.trim() !== '') {
         const term = search.toLowerCase().trim();
-        return products.filter(p => 
+        filteredProducts = products.filter(p => 
           (p.name && p.name.toLowerCase().includes(term)) ||
           (p.description && p.description.toLowerCase().includes(term))
         );
       }
-      return products;
+      if (filteredProducts.length > 0) {
+        return filteredProducts;
+      }
     } catch (err) {
       console.error('[DSI Database - Firebase] getProducts error:', err);
     }
@@ -1112,7 +1137,9 @@ export async function getTestimonials(): Promise<any[]> {
         .order('customer_name', { ascending: true });
       
       if (error) throw error;
-      return data || [];
+      if (data && data.length > 0) {
+        return data;
+      }
     } catch (err) {
       console.error('[DSI Database - Supabase] getTestimonials error:', err);
     }
@@ -1127,7 +1154,9 @@ export async function getTestimonials(): Promise<any[]> {
       snap.forEach((docSnap) => {
         testimonials.push({ id: docSnap.id, ...docSnap.data() });
       });
-      return testimonials;
+      if (testimonials.length > 0) {
+        return testimonials;
+      }
     } catch (err) {
       console.warn('[DSI Database] getTestimonials sorting failed, falling back to memory sort:', err);
       try {
@@ -1136,7 +1165,9 @@ export async function getTestimonials(): Promise<any[]> {
         snap.forEach((docSnap) => {
           testimonials.push({ id: docSnap.id, ...docSnap.data() });
         });
-        return testimonials.sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''));
+        if (testimonials.length > 0) {
+          return testimonials.sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''));
+        }
       } catch (innerErr) {
         console.error('[DSI Database] getTestimonials fatal error:', innerErr);
       }
