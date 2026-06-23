@@ -1294,26 +1294,29 @@ export async function autoSeedSupabase(force = false) {
 
       console.log('[DSI Database] Mengecek status seed di Supabase...');
       
-      // Seed admins if empty, checking if relation/table exists
+      // Test basic connection using admins check
       const { data: adminSnap, error: adminErr } = await supabase.from('admins').select('id').limit(1);
       if (adminErr) {
         console.warn('[DSI Database] Supabase connection failed or tables do not exist. Bypassing Supabase and falling back to Firebase Firestore:', adminErr.message || adminErr);
         isSupabaseEnabled = false;
-        // Skip Supabase seeding since tables aren't deployed
       } else {
-        const isFreshSupabase = (!adminSnap || adminSnap.length === 0) || force;
+        console.log('[DSI Database] Koneksi Supabase sehat. Memproses seeding individual...');
         
-        if (isFreshSupabase) {
-          console.log('[DSI Database] Basis data Supabase terdeteksi siap disingkronkan! Mengunggah data awal...');
-          
+        // A. Seed admins if empty
+        const isFreshAdmins = (!adminSnap || adminSnap.length === 0) || force;
+        if (isFreshAdmins) {
           console.log('[DSI Database] Melakukan seed data admin awal di Supabase...');
           await supabase.from('admins').insert([
             { id: 'admin-dony', username: 'Dony', password_hash: hashPassword('JastipDesiRistanti123') },
             { id: 'admin-desi', username: 'Desi', password_hash: hashPassword('JastipDesiRistanti123') },
             { id: 'admin-rori', username: 'Rori', password_hash: hashPassword('JastipDesiRistanti123') }
           ]);
+        }
 
-          // Seed products
+        // B. Seed products if empty
+        const { data: prodSnap } = await supabase.from('products').select('id').limit(1);
+        const isFreshProducts = (!prodSnap || prodSnap.length === 0) || force;
+        if (isFreshProducts) {
           console.log('[DSI Database] Melakukan seed data katalog jastip awal di Supabase...');
           const seedProducts = [
             {
@@ -1372,8 +1375,12 @@ export async function autoSeedSupabase(force = false) {
             }
           ];
           await supabase.from('products').insert(seedProducts);
+        }
 
-          // Seed initial order for Budi Santoso
+        // C. Seed orders + tracking history if empty
+        const { data: orderSnap } = await supabase.from('orders').select('id').limit(1);
+        const isFreshOrders = (!orderSnap || orderSnap.length === 0) || force;
+        if (isFreshOrders) {
           console.log('[DSI Database] Melakukan seed data pesanan awal di Supabase...');
           const orderId = 'order-initial-01';
           const initialOrder = {
@@ -1397,10 +1404,40 @@ export async function autoSeedSupabase(force = false) {
             { id: 'track-04', order_id: orderId, status: 'In Transit', updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1050).toISOString() }
           ];
           await supabase.from('tracking_history').insert(trackingHistory);
-          console.log('[DSI Database] Proses seeding Supabase selesai dengan aman! 🎆');
-        } else {
-          console.log('[DSI Database] Database Supabase sudah terinisialisasi sebelumnya. Melewati auto-seeding untuk mencegah reset data.');
         }
+
+        // D. Seed testimonials if empty
+        const { data: testSnap } = await supabase.from('testimonials').select('id').limit(1);
+        const isFreshTestimonials = (!testSnap || testSnap.length === 0) || force;
+        if (isFreshTestimonials) {
+          console.log('[DSI Database] Melakukan seed data testimonial awal di Supabase...');
+          const seedTestimonials = [
+            {
+              id: 'testi-001',
+              customer_name: 'Anindya Kirana',
+              review: 'My pink Stanley arrived in perfect condition! The packaging was so beautiful, like unboxing a luxury designer piece. Truly reliable personal shopping service. Custom notes were handwritten too!',
+              rating: 5,
+              image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'
+            },
+            {
+              id: 'testi-002',
+              customer_name: 'Sherly Septiani',
+              review: 'Very fast and responsive! Best Jastip service I have ever tried. Always get the rarest limited edition Stanley colors that other shoppers cannot secure. 10/10 recommended for active tumbler lovers!',
+              rating: 5,
+              image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150'
+            },
+            {
+              id: 'testi-003',
+              customer_name: 'Nadia Salsabila',
+              review: 'The Sakura Blossom Gift Set was the absolute perfect bridal shower gift for my best friend. The satin-lined box was stunningly luxurious. Jastip byDSI provides exceptional high-society aesthetic!',
+              rating: 5,
+              image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150'
+            }
+          ];
+          await supabase.from('testimonials').insert(seedTestimonials);
+        }
+        
+        console.log('[DSI Database] Proses seeding Supabase selesai dengan aman! 🎆');
       }
     } catch (err: any) {
       console.error('[DSI Database] Seeding Supabase gagal:', err.message || err);
@@ -1419,7 +1456,7 @@ export async function autoSeedSupabase(force = false) {
         await clearFirestoreCollection('testimonials');
       }
 
-      // Seed admins if empty
+      // A. Seed admins if empty
       const adminRef = collection(db, 'admins');
       const adminSnap = await getDocs(query(adminRef, limit(1)));
       const isFreshFirebase = adminSnap.empty || force;
@@ -1435,8 +1472,14 @@ export async function autoSeedSupabase(force = false) {
         for (const a of targetAdmins) {
           await setDoc(doc(db, 'admins', a.id), a);
         }
+      }
 
-        // Seed products
+      // B. Seed products if empty
+      const productRef = collection(db, 'products');
+      const productSnap = await getDocs(query(productRef, limit(1)));
+      const isFreshProducts = productSnap.empty || force;
+
+      if (isFreshProducts) {
         console.log('[DSI Database] Melakukan seed data katalog jastip awal di Firebase Firestore...');
         const seedProducts = [
           {
@@ -1497,8 +1540,14 @@ export async function autoSeedSupabase(force = false) {
         for (const p of seedProducts) {
           await setDoc(doc(db, 'products', p.id), p);
         }
+      }
 
-        // Seed initial order for Budi Santoso
+      // C. Seed initial order if empty
+      const orderRef = collection(db, 'orders');
+      const orderSnap = await getDocs(query(orderRef, limit(1)));
+      const isFreshOrders = orderSnap.empty || force;
+
+      if (isFreshOrders) {
         console.log('[DSI Database] Melakukan seed data pesanan awal di Firebase Firestore...');
         const orderId = 'order-initial-01';
         const initialOrder = {
@@ -1524,27 +1573,43 @@ export async function autoSeedSupabase(force = false) {
         for (const tracker of tracking_history) {
           await setDoc(doc(db, 'tracking_history', tracker.id), tracker);
         }
+      }
 
-        // Seed initial testimonial
+      // D. Seed testimonials if empty
+      const testimonialRef = collection(db, 'testimonials');
+      const testimonialSnap = await getDocs(query(testimonialRef, limit(1)));
+      const isFreshTestimonials = testimonialSnap.empty || force;
+
+      if (isFreshTestimonials) {
         console.log('[DSI Database] Melakukan seed data ulasan pelanggan awal di Firebase Firestore...');
-        const initialTestimonial = {
-          id: 'testi-001',
-          customer_name: 'Clarissa Putri',
-          comment: 'Sangat puas dengan Jastip BYDSI! Barangnya dijamin 100% original, pengemasan tebal berlipat, dan seller ramah responsif memberi informasi transit.',
-          review: 'Sangat puas dengan Jastip BYDSI! Barangnya dijamin 100% original, pengemasan tebal berlipat, dan seller ramah responsif memberi informasi transit.',
-          product_purchased: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
-          rating: 5,
-          image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150',
-          created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-        };
-        await setDoc(doc(db, 'testimonials', initialTestimonial.id), initialTestimonial);
-
-        console.log('[DSI Database] Seeding database Firebase Firestore selesai!');
-      } else {
-        console.log('[DSI Database] Database Firebase Firestore sudah terinisialisasi sebelumnya. Melewati auto-seeding untuk mencegah reset data.');
+        const targetTestimonials = [
+          {
+            id: 'testi-001',
+            customer_name: 'Clarissa Putri',
+            comment: 'Sangat puas dengan Jastip BYDSI! Barangnya dijamin 100% original, pengemasan tebal berlipat, dan seller ramah responsif memberi informasi transit.',
+            review: 'Sangat puas dengan Jastip BYDSI! Barangnya dijamin 100% original, pengemasan tebal berlipat, dan seller ramah responsif memberi informasi transit.',
+            product_purchased: 'Stanley Quencher H2.0 FlowState (40oz) - Pastel Pink',
+            rating: 5,
+            image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150',
+            created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+          },
+          {
+            id: 'testi-002',
+            customer_name: 'Anindya Kirana',
+            comment: 'My pink Stanley arrived in perfect condition! The packaging was so beautiful, like unboxing a luxury designer piece. Truly reliable personal shopping service. Custom notes were handwritten too!',
+            review: 'My pink Stanley arrived in perfect condition! The packaging was so beautiful, like unboxing a luxury designer piece. Truly reliable personal shopping service. Custom notes were handwritten too!',
+            product_purchased: 'Stanley Quencher H2.0 (40oz) - Limited Edition Floral Watercolor',
+            rating: 5,
+            image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
+            created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        ];
+        for (const t of targetTestimonials) {
+          await setDoc(doc(db, 'testimonials', t.id), t);
+        }
       }
       
-      console.log('[DSI Database] Proses pengecekan & seeding Firebase selesai! Cloud NoSQL database siap pakai penuh.');
+      console.log('[DSI Database] Proses pengecekan & seeding Firebase selesai dengan aman! Cloud NoSQL database siap pakai penuh.');
     } catch (err: any) {
       console.error('[DSI Database] Seeding database Firebase Firestore gagal:', err.message || err);
     }
