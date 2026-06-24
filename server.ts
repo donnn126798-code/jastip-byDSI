@@ -123,11 +123,14 @@ app.post('/api/admin/login', async (req: Request, res: Response) => {
 app.get('/api/products', async (req: Request, res: Response) => {
   const category = req.query.category as string;
   const search = req.query.search as string;
+  console.log(`[API /api/products] Request received - category: "${category}", search: "${search}"`);
 
   try {
     const products = await getProducts(category, search);
+    console.log(`[API /api/products] Success - returning ${products.length} products`);
     return res.json(products);
   } catch (err: any) {
+    console.error(`[API /api/products] Error - ${err.message || err}`);
     return res.status(500).json({ error: err.message });
   }
 });

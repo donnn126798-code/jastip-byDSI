@@ -106,9 +106,9 @@ ALTER TABLE public.testimonials DISABLE ROW LEVEL SECURITY;
 -- Authenticated via Node pbkdf2 algorithm matching your AI Studio server config.
 INSERT INTO public.admins (id, username, password_hash)
 VALUES 
-  ('admin-dony', 'Dony', 'd26914ed0dc3fc64b97f0a9f5cbea899f84852934eedee2bcab42fbe59c3cca036a44cbd935ee588b43bd7ba78f1f56860ac45330a133df1fe881c15f9ee29fe'),
-  ('admin-desi', 'Desi', 'd26914ed0dc3fc64b97f0a9f5cbea899f84852934eedee2bcab42fbe59c3cca036a44cbd935ee588b43bd7ba78f1f56860ac45330a133df1fe881c15f9ee29fe'),
-  ('admin-rori', 'Rori', 'd26914ed0dc3fc64b97f0a9f5cbea899f84852934eedee2bcab42fbe59c3cca036a44cbd935ee588b43bd7ba78f1f56860ac45330a133df1fe881c15f9ee29fe')
+  ('admin-dony', 'Dony', 'dd52882c4592ed10076ba30adb706cdcb7a44603fb041a2375d6c4320f42052b278028b8b12e11bec7f5da740290aa35bd265589f3f96c022d40dc17e4d88ff5'),
+  ('admin-desi', 'Desi', 'dd52882c4592ed10076ba30adb706cdcb7a44603fb041a2375d6c4320f42052b278028b8b12e11bec7f5da740290aa35bd265589f3f96c022d40dc17e4d88ff5'),
+  ('admin-rori', 'Rori', 'dd52882c4592ed10076ba30adb706cdcb7a44603fb041a2375d6c4320f42052b278028b8b12e11bec7f5da740290aa35bd265589f3f96c022d40dc17e4d88ff5')
 ON CONFLICT (username) DO NOTHING;
 
 -- 2. Seed Premium Curated Product Catalog
