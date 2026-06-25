@@ -222,6 +222,24 @@ export const inMemoryTestimonials: any[] = [
 let isSeedingInProgress = false;
 let isAlreadySeededChecked = false;
 
+// Helper to execute any promise with a maximum timeout (e.g. 2500ms)
+export function withTimeout<T>(promise: Promise<T>, timeoutMs = 2500): Promise<T> {
+  let timeoutId: any;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Database operation timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([
+    promise.then((res) => {
+      clearTimeout(timeoutId);
+      return res;
+    }),
+    timeoutPromise
+  ]);
+}
+
 export async function checkAndLazySeed() {
   if (isAlreadySeededChecked || isSeedingInProgress) return;
   
@@ -232,16 +250,16 @@ export async function checkAndLazySeed() {
       if (isSupabaseEnabled && supabase) {
         console.log('[DSI Database] Mengecek status seed di Supabase secara lazy...');
         try {
-          const { data, error } = await supabase.from('products').select('id').limit(1);
+          const { data, error } = (await withTimeout(supabase.from('products').select('id').limit(1), 2500)) as any;
           if (error) {
             console.warn('[DSI Database] Gagal query Supabase (mungkin tabel belum dibuat di SQL Editor atau RLS aktif). Menggunakan mode fallback aman...', error);
             isSupabaseEnabled = false;
           } else if (!data || data.length === 0) {
             console.log('[DSI Database] Basis data Supabase masih kosong, memulai auto-seed...');
-            await autoSeedSupabase();
+            await withTimeout(autoSeedSupabase(), 4000);
           }
         } catch (supaErr: any) {
-          console.warn('[DSI Database] Exception ketika query Supabase. Menggunakan mode fallback aman...', supaErr);
+          console.warn('[DSI Database] Exception ketika query Supabase atau timeout. Menggunakan mode fallback aman...', supaErr.message || supaErr);
           isSupabaseEnabled = false;
         }
       }
@@ -251,14 +269,15 @@ export async function checkAndLazySeed() {
         console.log('[DSI Database] Mengecek status seed di Firebase secara lazy...');
         try {
           const ref = collection(db, 'products');
-          const snap = await getDocs(query(ref, limit(1)));
+          const snap = await withTimeout(getDocs(query(ref, limit(1))), 2500);
           if (snap.empty) {
             console.log('[DSI Database] Basis data Firebase masih kosong, memulai auto-seed...');
-            await autoSeedSupabase();
+            await withTimeout(autoSeedSupabase(), 4000);
           }
         } catch (fireErr: any) {
-          console.warn('[DSI Database] Gagal query Firebase (mungkin izin kurang atau config bermasalah). Menonaktifkan koneksi Firebase...', fireErr);
+          console.warn('[DSI Database] Gagal query Firebase atau timeout. Menonaktifkan koneksi Firebase...', fireErr.message || fireErr);
           db = null;
+          isFirebaseEnabled = false;
         }
       }
       isAlreadySeededChecked = true;
@@ -278,15 +297,18 @@ export async function getAdminByUsername(username: string): Promise<any> {
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
-      const { data, error } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('username', username);
+      const { data, error } = (await withTimeout(
+        supabase
+          .from('admins')
+          .select('*')
+          .eq('username', username),
+        2500
+      )) as any;
       
       if (error) throw error;
       if (data && data.length > 0) return data[0];
-    } catch (err) {
-      console.error('[DSI Database - Supabase] getAdminByUsername error:', err);
+    } catch (err: any) {
+      console.error('[DSI Database - Supabase] getAdminByUsername error:', err.message || err);
     }
   }
 
@@ -294,7 +316,7 @@ export async function getAdminByUsername(username: string): Promise<any> {
   if (db) {
     try {
       const q = query(collection(db, 'admins'));
-      const snap = await getDocs(q);
+      const snap = await withTimeout(getDocs(q), 2500);
       let found: any = null;
       snap.forEach((docSnap) => {
         const d = docSnap.data();
@@ -303,8 +325,8 @@ export async function getAdminByUsername(username: string): Promise<any> {
         }
       });
       if (found) return found;
-    } catch (err) {
-      console.error('[DSI Database - Firebase] getAdminByUsername error:', err);
+    } catch (err: any) {
+      console.error('[DSI Database - Firebase] getAdminByUsername error:', err.message || err);
     }
   }
 
@@ -330,7 +352,7 @@ export async function getProducts(category?: string, search?: string): Promise<a
       if (category && category !== 'All') {
         q = q.eq('category', category);
       }
-      const { data, error } = await q;
+      const { data, error } = (await withTimeout(q, 2500)) as any;
       if (error) throw error;
       
       let products = data || [];
@@ -344,8 +366,8 @@ export async function getProducts(category?: string, search?: string): Promise<a
       if (products.length > 0) {
         return products;
       }
-    } catch (err) {
-      console.error('[DSI Database - Supabase] getProducts error:', err);
+    } catch (err: any) {
+      console.error('[DSI Database - Supabase] getProducts error:', err.message || err);
     }
   }
 
@@ -356,9 +378,9 @@ export async function getProducts(category?: string, search?: string): Promise<a
       let snap;
       if (category && category !== 'All') {
         const q = query(ref, where('category', '==', category));
-        snap = await getDocs(q);
+        snap = await withTimeout(getDocs(q), 2500);
       } else {
-        snap = await getDocs(ref);
+        snap = await withTimeout(getDocs(ref), 2500);
       }
 
       const products: any[] = [];
@@ -377,8 +399,8 @@ export async function getProducts(category?: string, search?: string): Promise<a
       if (filteredProducts.length > 0) {
         return filteredProducts;
       }
-    } catch (err) {
-      console.error('[DSI Database - Firebase] getProducts error:', err);
+    } catch (err: any) {
+      console.error('[DSI Database - Firebase] getProducts error:', err.message || err);
     }
   }
 
@@ -1131,17 +1153,20 @@ export async function getTestimonials(): Promise<any[]> {
   // Try Supabase first if active
   if (isSupabaseEnabled && supabase) {
     try {
-      const { data, error } = await supabase
-        .from('testimonials')
-        .select('*')
-        .order('customer_name', { ascending: true });
+      const { data, error } = (await withTimeout(
+        supabase
+          .from('testimonials')
+          .select('*')
+          .order('customer_name', { ascending: true }),
+        2500
+      )) as any;
       
       if (error) throw error;
       if (data && data.length > 0) {
         return data;
       }
-    } catch (err) {
-      console.error('[DSI Database - Supabase] getTestimonials error:', err);
+    } catch (err: any) {
+      console.error('[DSI Database - Supabase] getTestimonials error:', err.message || err);
     }
   }
 
@@ -1149,7 +1174,7 @@ export async function getTestimonials(): Promise<any[]> {
   if (db) {
     try {
       const q = query(collection(db, 'testimonials'), orderBy('customer_name', 'asc'));
-      const snap = await getDocs(q);
+      const snap = await withTimeout(getDocs(q), 2500);
       const testimonials: any[] = [];
       snap.forEach((docSnap) => {
         testimonials.push({ id: docSnap.id, ...docSnap.data() });
@@ -1157,10 +1182,10 @@ export async function getTestimonials(): Promise<any[]> {
       if (testimonials.length > 0) {
         return testimonials;
       }
-    } catch (err) {
-      console.warn('[DSI Database] getTestimonials sorting failed, falling back to memory sort:', err);
+    } catch (err: any) {
+      console.warn('[DSI Database] getTestimonials sorting failed, falling back to memory sort:', err.message || err);
       try {
-        const snap = await getDocs(collection(db, 'testimonials'));
+        const snap = await withTimeout(getDocs(collection(db, 'testimonials')), 2500);
         const testimonials: any[] = [];
         snap.forEach((docSnap) => {
           testimonials.push({ id: docSnap.id, ...docSnap.data() });
@@ -1168,8 +1193,8 @@ export async function getTestimonials(): Promise<any[]> {
         if (testimonials.length > 0) {
           return testimonials.sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''));
         }
-      } catch (innerErr) {
-        console.error('[DSI Database] getTestimonials fatal error:', innerErr);
+      } catch (innerErr: any) {
+        console.error('[DSI Database] getTestimonials fatal error:', innerErr.message || innerErr);
       }
     }
   }
