@@ -309,6 +309,9 @@ export async function getAdminByUsername(username: string): Promise<any> {
       if (data && data.length > 0) return data[0];
     } catch (err: any) {
       console.error('[DSI Database - Supabase] getAdminByUsername error:', err.message || err);
+      console.warn('[DSI Database] Deactivating faulty Supabase database client and enabling circuit breaker.');
+      isSupabaseEnabled = false;
+      supabase = null;
     }
   }
 
@@ -327,6 +330,9 @@ export async function getAdminByUsername(username: string): Promise<any> {
       if (found) return found;
     } catch (err: any) {
       console.error('[DSI Database - Firebase] getAdminByUsername error:', err.message || err);
+      console.warn('[DSI Database] Deactivating faulty Firebase database client and enabling circuit breaker.');
+      isFirebaseEnabled = false;
+      db = null;
     }
   }
 
@@ -368,6 +374,9 @@ export async function getProducts(category?: string, search?: string): Promise<a
       }
     } catch (err: any) {
       console.error('[DSI Database - Supabase] getProducts error:', err.message || err);
+      console.warn('[DSI Database] Deactivating faulty Supabase database client and enabling circuit breaker.');
+      isSupabaseEnabled = false;
+      supabase = null;
     }
   }
 
@@ -401,6 +410,9 @@ export async function getProducts(category?: string, search?: string): Promise<a
       }
     } catch (err: any) {
       console.error('[DSI Database - Firebase] getProducts error:', err.message || err);
+      console.warn('[DSI Database] Deactivating faulty Firebase database client and enabling circuit breaker.');
+      isFirebaseEnabled = false;
+      db = null;
     }
   }
 
@@ -754,6 +766,9 @@ export async function getAllOrders(): Promise<any[]> {
       return data || [];
     } catch (err) {
       console.error('[DSI Database - Supabase] getAllOrders error:', err);
+      console.warn('[DSI Database] Deactivating faulty Supabase database client and enabling circuit breaker.');
+      isSupabaseEnabled = false;
+      supabase = null;
     }
   }
 
@@ -768,7 +783,7 @@ export async function getAllOrders(): Promise<any[]> {
       });
       return orders;
     } catch (err) {
-      console.warn('[DSI Database] getAllOrders sorting failed, falling back to memory sort:', err);
+      console.warn('[DSI Database] getAllOrders sorting failed, trying direct scan:', err);
       try {
         const snap = await getDocs(collection(db, 'orders'));
         const orders: any[] = [];
@@ -778,6 +793,9 @@ export async function getAllOrders(): Promise<any[]> {
         return orders.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
       } catch (innerErr) {
         console.error('[DSI Database] getAllOrders fatal error:', innerErr);
+        console.warn('[DSI Database] Deactivating faulty Firebase database client and enabling circuit breaker.');
+        isFirebaseEnabled = false;
+        db = null;
       }
     }
   }
@@ -806,6 +824,9 @@ export async function getOrderByCode(code: string): Promise<any> {
       return order;
     } catch (err) {
       console.error('[DSI Database - Supabase] getOrderByCode error:', err);
+      console.warn('[DSI Database] Deactivating faulty Supabase database client and enabling circuit breaker.');
+      isSupabaseEnabled = false;
+      supabase = null;
     }
   }
 
@@ -835,6 +856,9 @@ export async function getOrderByCode(code: string): Promise<any> {
       return found;
     } catch (err) {
       console.error('[DSI Database - Firebase] getOrderByCode error:', err);
+      console.warn('[DSI Database] Deactivating faulty Firebase database client and enabling circuit breaker.');
+      isFirebaseEnabled = false;
+      db = null;
     }
   }
 
@@ -1167,6 +1191,9 @@ export async function getTestimonials(): Promise<any[]> {
       }
     } catch (err: any) {
       console.error('[DSI Database - Supabase] getTestimonials error:', err.message || err);
+      console.warn('[DSI Database] Deactivating faulty Supabase database client and enabling circuit breaker.');
+      isSupabaseEnabled = false;
+      supabase = null;
     }
   }
 
@@ -1183,7 +1210,7 @@ export async function getTestimonials(): Promise<any[]> {
         return testimonials;
       }
     } catch (err: any) {
-      console.warn('[DSI Database] getTestimonials sorting failed, falling back to memory sort:', err.message || err);
+      console.warn('[DSI Database] getTestimonials sorting failed, trying direct scan:', err.message || err);
       try {
         const snap = await withTimeout(getDocs(collection(db, 'testimonials')), 2500);
         const testimonials: any[] = [];
@@ -1195,6 +1222,9 @@ export async function getTestimonials(): Promise<any[]> {
         }
       } catch (innerErr: any) {
         console.error('[DSI Database] getTestimonials fatal error:', innerErr.message || innerErr);
+        console.warn('[DSI Database] Deactivating faulty Firebase database client and enabling circuit breaker.');
+        isFirebaseEnabled = false;
+        db = null;
       }
     }
   }
@@ -1689,7 +1719,5 @@ export async function getDbDiagnostics() {
   return result;
 }
 
-// Automatically seed database on initialization if either database is active
-autoSeedSupabase().catch((err) => {
-  console.error('[DSI Database] Auto seed loading error:', err);
-});
+// Database is lazily seeded during the first checkAndLazySeed call
+

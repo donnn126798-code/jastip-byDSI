@@ -119,6 +119,7 @@ export default function App() {
         animate={{ opacity: appLoading ? 0 : 1, scale: appLoading ? 0.985 : 1 }}
         transition={{ duration: 1.1, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} // Elegant delayed fade-scale entry as curtain lifts
         className="min-h-screen bg-slate-50/20 text-slate-800 flex flex-col font-sans selection:bg-pink-100 selection:text-pink-600"
+        style={{ display: appLoading ? 'none' : 'flex' }}
       >
       
       {/* Decorative Top Accent line */}
