@@ -256,7 +256,7 @@ export async function checkAndLazySeed() {
             isSupabaseEnabled = false;
           } else if (!data || data.length === 0) {
             console.log('[DSI Database] Basis data Supabase masih kosong, memulai auto-seed...');
-            await withTimeout(autoSeedSupabase(), 4000);
+            await withTimeout(autoSeedSupabase(), 20000);
           }
         } catch (supaErr: any) {
           console.warn('[DSI Database] Exception ketika query Supabase atau timeout. Menggunakan mode fallback aman...', supaErr.message || supaErr);
@@ -272,7 +272,7 @@ export async function checkAndLazySeed() {
           const snap = await withTimeout(getDocs(query(ref, limit(1))), 2500);
           if (snap.empty) {
             console.log('[DSI Database] Basis data Firebase masih kosong, memulai auto-seed...');
-            await withTimeout(autoSeedSupabase(), 4000);
+            await withTimeout(autoSeedSupabase(), 20000);
           }
         } catch (fireErr: any) {
           console.warn('[DSI Database] Gagal query Firebase atau timeout. Menonaktifkan koneksi Firebase...', fireErr.message || fireErr);
