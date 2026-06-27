@@ -225,19 +225,39 @@ let isAlreadySeededChecked = false;
 // Helper to execute any promise with a maximum timeout (e.g. 2500ms)
 export function withTimeout<T>(promise: Promise<T>, timeoutMs = 2500): Promise<T> {
   let timeoutId: any;
+  let finished = false;
+
   const timeoutPromise = new Promise<T>((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new Error(`Database operation timed out after ${timeoutMs}ms`));
+      if (!finished) {
+        finished = true;
+        reject(new Error(`Database operation timed out after ${timeoutMs}ms`));
+      }
     }, timeoutMs);
   });
 
-  return Promise.race([
-    promise.then((res) => {
-      clearTimeout(timeoutId);
-      return res;
-    }),
-    timeoutPromise
-  ]);
+  const wrappedPromise = new Promise<T>((resolve, reject) => {
+    promise
+      .then((res) => {
+        if (!finished) {
+          finished = true;
+          clearTimeout(timeoutId);
+          resolve(res);
+        }
+      })
+      .catch((err) => {
+        if (!finished) {
+          finished = true;
+          clearTimeout(timeoutId);
+          reject(err);
+        } else {
+          // Prevent unhandled rejection by logging or ignoring the late failure
+          console.warn('[DSI Database - Timeout Safeguard] Swallowed late database rejection:', err.message || err);
+        }
+      });
+  });
+
+  return Promise.race([wrappedPromise, timeoutPromise]);
 }
 
 export async function checkAndLazySeed() {
@@ -275,9 +295,7 @@ export async function checkAndLazySeed() {
             await withTimeout(autoSeedSupabase(), 20000);
           }
         } catch (fireErr: any) {
-          console.warn('[DSI Database] Gagal query Firebase atau timeout. Menonaktifkan koneksi Firebase...', fireErr.message || fireErr);
-          db = null;
-          isFirebaseEnabled = false;
+          console.warn('[DSI Database] Gagal query Firebase atau timeout ketika seeding. Akan dicoba lagi nanti...', fireErr.message || fireErr);
         }
       }
       isAlreadySeededChecked = true;
@@ -330,9 +348,7 @@ export async function getAdminByUsername(username: string): Promise<any> {
       if (found) return found;
     } catch (err: any) {
       console.error('[DSI Database - Firebase] getAdminByUsername error:', err.message || err);
-      console.warn('[DSI Database] Deactivating faulty Firebase database client and enabling circuit breaker.');
-      isFirebaseEnabled = false;
-      db = null;
+      console.warn('[DSI Database] Firebase query failed. Falling back gracefully...');
     }
   }
 
@@ -409,10 +425,8 @@ export async function getProducts(category?: string, search?: string): Promise<a
         return filteredProducts;
       }
     } catch (err: any) {
-      console.error('[DSI Database - Firebase] getProducts error:', err.message || err);
-      console.warn('[DSI Database] Deactivating faulty Firebase database client and enabling circuit breaker.');
-      isFirebaseEnabled = false;
-      db = null;
+       console.error('[DSI Database - Firebase] getProducts error:', err.message || err);
+       console.warn('[DSI Database] Firebase query failed. Falling back gracefully...');
     }
   }
 

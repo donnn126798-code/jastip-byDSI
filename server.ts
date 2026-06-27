@@ -40,6 +40,16 @@ import {
 } from './server/db.js';
 
 const app = express();
+
+// Register process-level protection to avoid crashing on slow database rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.warn('[DSI Server - Process Guard] Intercepted unhandled promise rejection to prevent server crash:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[DSI Server - Process Guard] Intercepted uncaught exception to prevent server crash:', error);
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 export { app };
