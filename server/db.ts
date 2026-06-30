@@ -33,7 +33,13 @@ export function hashPassword(password: string): string {
 }
 
 // 1. Initialize Supabase if credentials are provided in env (such as on Vercel)
-const supabaseUrl = process.env.SUPABASE_URL || '';
+let rawSupabaseUrl = (process.env.SUPABASE_URL || '').trim();
+if (rawSupabaseUrl.endsWith('/rest/v1')) {
+  rawSupabaseUrl = rawSupabaseUrl.slice(0, -8);
+} else if (rawSupabaseUrl.endsWith('/rest/v1/')) {
+  rawSupabaseUrl = rawSupabaseUrl.slice(0, -9);
+}
+const supabaseUrl = rawSupabaseUrl;
 const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_NON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
 
 export const hasSupabaseConfig = !!(
@@ -44,7 +50,7 @@ export const hasSupabaseConfig = !!(
   !supabaseUrl.includes('placeholder')
 );
 export let isSupabaseEnabled = false;
-let supabase: any = null;
+export let supabase: any = null;
 
 if (hasSupabaseConfig) {
   try {
@@ -1375,11 +1381,12 @@ export async function autoSeedSupabase(force = false) {
         const isFreshAdmins = (!adminSnap || adminSnap.length === 0) || force;
         if (isFreshAdmins) {
           console.log('[DSI Database] Melakukan seed data admin awal di Supabase...');
-          await supabase.from('admins').insert([
+          const { error } = await supabase.from('admins').insert([
             { id: 'admin-dony', username: 'Dony', password_hash: hashPassword('JastipDesiRistanti123') },
             { id: 'admin-desi', username: 'Desi', password_hash: hashPassword('JastipDesiRistanti123') },
             { id: 'admin-rori', username: 'Rori', password_hash: hashPassword('JastipDesiRistanti123') }
           ]);
+          if (error) throw error;
         }
 
         // B. Seed products if empty
@@ -1443,7 +1450,8 @@ export async function autoSeedSupabase(force = false) {
               image: '/rose_gold_charms.png'
             }
           ];
-          await supabase.from('products').insert(seedProducts);
+          const { error } = await supabase.from('products').insert(seedProducts);
+          if (error) throw error;
         }
 
         // C. Seed orders + tracking history if empty
@@ -1464,7 +1472,8 @@ export async function autoSeedSupabase(force = false) {
             status: 'In Transit',
             created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1050).toISOString()
           };
-          await supabase.from('orders').insert(initialOrder);
+          const { error: orderErr } = await supabase.from('orders').insert(initialOrder);
+          if (orderErr) throw orderErr;
 
           const trackingHistory = [
             { id: 'track-01', order_id: orderId, status: 'Waiting for Payment', updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1050).toISOString() },
@@ -1472,7 +1481,8 @@ export async function autoSeedSupabase(force = false) {
             { id: 'track-03', order_id: orderId, status: 'Ordered', updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1050).toISOString() },
             { id: 'track-04', order_id: orderId, status: 'In Transit', updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1050).toISOString() }
           ];
-          await supabase.from('tracking_history').insert(trackingHistory);
+          const { error: trackErr } = await supabase.from('tracking_history').insert(trackingHistory);
+          if (trackErr) throw trackErr;
         }
 
         // D. Seed testimonials if empty
@@ -1503,7 +1513,8 @@ export async function autoSeedSupabase(force = false) {
               image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150'
             }
           ];
-          await supabase.from('testimonials').insert(seedTestimonials);
+          const { error: testErr } = await supabase.from('testimonials').insert(seedTestimonials);
+          if (testErr) throw testErr;
         }
         
         console.log('[DSI Database] Proses seeding Supabase selesai dengan aman! 🎆');

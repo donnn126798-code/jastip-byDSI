@@ -84,18 +84,46 @@ CREATE TABLE IF NOT EXISTS public.testimonials (
 
 
 -- =========================================================================
--- [PART B] STICKY BUG FIX: DISABLE ROW LEVEL SECURITY (RLS) FOR ALL TABLES
+-- [PART B] STICKY BUG FIX: DISABLE RLS & CREATE ALL-PERMISSIVE POLICIES
 -- =========================================================================
--- By default, Supabase activates Row Level Security on newly created tables,
--- which silently blocks all SELECT and INSERT queries (returning empty arrays) 
--- unless policies are configured. Running the following lines disables RLS, 
--- ensuring full, seamless operations from your deployed full-stack web app.
+-- By default, Supabase activates Row Level Security (RLS) on newly created tables,
+-- which silently blocks all SELECT and INSERT queries (returning empty arrays or unauthorized errors) 
+-- unless policies are configured. 
+--
+-- Running these lines does TWO things to guarantee your app works flawlessly:
+-- 1. Attempts to disable RLS on all tables.
+-- 2. In case your Supabase project forces RLS to remain enabled, we explicitly ENABLE RLS 
+--    and establish "Permit all" policies for every table, so that all read, insert, update, 
+--    and delete queries from your frontend and backend anon keys work with NO authorization issues!
 
+-- Attempt to disable RLS first
 ALTER TABLE public.admins DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tracking_history DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.testimonials DISABLE ROW LEVEL SECURITY;
+
+-- Explicitly enable RLS and apply "Permit all" policies (Double-protection fallback)
+ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tracking_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.testimonials ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permit all admins" ON public.admins;
+CREATE POLICY "Permit all admins" ON public.admins FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permit all products" ON public.products;
+CREATE POLICY "Permit all products" ON public.products FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permit all orders" ON public.orders;
+CREATE POLICY "Permit all orders" ON public.orders FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permit all tracking" ON public.tracking_history;
+CREATE POLICY "Permit all tracking" ON public.tracking_history FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permit all testimonials" ON public.testimonials;
+CREATE POLICY "Permit all testimonials" ON public.testimonials FOR ALL TO public USING (true) WITH CHECK (true);
 
 
 -- =========================================================================
